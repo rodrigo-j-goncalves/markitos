@@ -40,41 +40,17 @@ A lightweight desktop Markdown viewer and editor with **collapsible bullet lists
 
 ## Installation
 
-```bash
-# Clone the repo
-git clone <repo-url>
-cd text-editor
-
-# Create and activate a virtual environment (recommended)
-python -m venv .venv
-source .venv/bin/activate        # Linux / macOS
-.venv\Scripts\activate           # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
----
+1. Clone the repo
+2. Create and activate a virtual environment (recommended)
+3. Install dependencies
 
 ## Running
 
-```bash
 # Open with no file (starts in edit mode)
-python markitos.py
+`python markitos.py`
 
 # Open a specific file
-python markitos.py myfile.md
-```
-
-### Convenience script (Linux / macOS)
-
-A `mdeditor` shell script is included that activates the bundled venv automatically:
-
-```bash
-./mdeditor myfile.md
-```
-
-Edit the `source` line inside `mdeditor` to point to your virtual environment if needed.
+`python markitos.py myfile.md`
 
 ---
 
@@ -96,22 +72,6 @@ Edit the `source` line inside `mdeditor` to point to your virtual environment if
 | `Ctrl+A` | Select all |
 
 Configurable shortcuts can be changed in **View → Appearance → Keyboard Shortcuts**.
-
----
-
-## Project Structure
-
-```
-text-editor/
-├── markitos.py       # Entry point
-├── mdeditor          # Shell launcher script (Linux/macOS)
-├── requirements.txt
-└── src/
-    ├── settings.py   # Persistent settings (JSON)
-    ├── renderer.py   # Markdown → HTML with collapsible lists
-    ├── dialogs.py    # Appearance dialog, Find bar
-    └── window.py     # Main window
-```
 
 ---
 
@@ -137,17 +97,3 @@ All appearance options live in **View → Appearance** (or the toolbar button).
 
 **Markdown parser:** [mistune 3](https://github.com/lepture/mistune). A custom `HTMLRenderer` subclass intercepts `list_item` rendering to wrap items that have nested children in `<details>`/`<summary>` tags.
 
-**Collapsible lists:** Implemented via HTML5 `<details>`/`<summary>`. No custom JavaScript is needed for individual item toggling — it is native browser behaviour. JavaScript is only used for "collapse all" / "expand all" (`querySelectorAll('details')`).
-
-**Non-printing characters:** `ShowTabsAndSpaces` and `ShowLineAndParagraphSeparators` flags on the document's `QTextOption` render the markers. `QPalette::Text` is set to the dim colour so all markers (including `¶`) appear faded; a `QSyntaxHighlighter` subclass then restores non-whitespace character runs to the full text colour.
-
-**Indent guides:** A transparent `QWidget` overlay on the editor viewport draws vertical lines block-by-block in `paintEvent`, using `blockBoundingGeometry` for positioning.
-
-**Line numbers:** Standard Qt "Code Editor" pattern — `_LineNumberArea` widget sets left viewport margin via `setViewportMargins`; `blockCountChanged` and `updateRequest` signals keep it in sync. Current line number is drawn bold in the full text colour; other lines use a dim colour. The gutter background is a 20 % text / 80 % background blend for a subtle visual separation. Numpad Enter support for the toggle shortcut is added by registering a second `QShortcut` for `Ctrl+Shift+Enter` alongside the configurable one.
-
-**Auto-renumber:** `document().contentsChanged` triggers a debounced (120 ms) pass that walks all blocks, tracks the expected number per indentation level, and silently fixes any out-of-sequence ordered list item. The pass uses `QTextCursor.joinPreviousEditBlock()` so renumbering is merged into the same undo step as the triggering edit — a single Ctrl+Z undoes both the deletion and the renumber together.
-
-**Known limitations (v1):**
-- Embedded HTML inside Markdown is not rendered.
-- No export to PDF or HTML.
-- No spell check or multiple tabs.
