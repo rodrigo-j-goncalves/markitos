@@ -1,6 +1,12 @@
+# Ignore everything
 *
+# But don't ignore the folders themselves
+!src/
+!icon/
+# And don't ignore the files inside them
+!src/*
+!icon/*
+# Keep your root files
 !.gitignore
 !markitos.py
 !README.md
-!src/
-!icon/
