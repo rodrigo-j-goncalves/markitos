@@ -32,6 +32,9 @@ class Settings:
         "para_spacing": "0.6em",
         "md_max_width": "95%", # default: 66
         "word_wrap": True,
+        "md_font_family": "",   # "" = use font_family
+        "md_font_size": 0,      # 0  = use font_size
+        "image_paste_folder": "assets",  # folder for pasted images (relative to the .md file)
     }
 
     def __init__(self):

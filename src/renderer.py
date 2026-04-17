@@ -3,6 +3,55 @@ import mistune
 from mistune.renderers.html import HTMLRenderer
 
 
+# ---------------------------------------------------------------------------
+# LaTeX / math protection
+# ---------------------------------------------------------------------------
+
+def _protect_math(text: str):
+    """Replace $$...$$ and $...$ with opaque placeholders before markdown parsing.
+
+    This prevents mistune from interpreting underscores, asterisks, or angle
+    brackets that appear inside LaTeX expressions as Markdown constructs.
+    Returns (modified_text, {placeholder: original}) mapping.
+    """
+    placeholders: dict[str, str] = {}
+    counter = [0]
+
+    def _repl(m: re.Match) -> str:
+        key = f"MARKITOSMATH{counter[0]}X"
+        counter[0] += 1
+        placeholders[key] = m.group(0)
+        return key
+
+    # Display math first (can span multiple lines)
+    text = re.sub(r'\$\$[\s\S]+?\$\$', _repl, text)
+    # Inline math (single line, non-empty)
+    text = re.sub(r'\$[^$\n]+?\$', _repl, text)
+    return text, placeholders
+
+
+def _restore_math(html: str, placeholders: dict) -> str:
+    for key, value in placeholders.items():
+        html = html.replace(key, value)
+    return html
+
+
+# KaTeX CDN snippets injected into the <head> of every rendered page.
+# Requires internet access; math falls back gracefully to raw $...$ when offline.
+_KATEX_HEAD = (
+    '<link rel="stylesheet" '
+    'href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" '
+    'crossorigin="anonymous">\n'
+    '<script defer '
+    'src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" '
+    'crossorigin="anonymous"></script>\n'
+    '<script defer '
+    'src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" '
+    r"""onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false})" """
+    'crossorigin="anonymous"></script>\n'
+)
+
+
 class CollapsibleRenderer(HTMLRenderer):
     """HTMLRenderer that wraps list items containing children in <details>/<summary>."""
 
@@ -27,34 +76,58 @@ class CollapsibleRenderer(HTMLRenderer):
         return f"<li>{clean}</li>\n"
 
 
-def _wrap_h2_sections(body: str) -> str:
-    """Wrap each H2 heading and the content that follows it in <details>/<summary>."""
-    # Split on <h2> tags (with possible attributes)
-    parts = re.split(r'(<h2[^>]*>.*?</h2>)', body, flags=re.DOTALL)
+def _wrap_header_sections(body: str) -> str:
+    """Wrap H2–H6 headings and their content in nested <details>/<summary> blocks.
+
+    H1 is left as a plain heading (document title).
+    Each heading owns all content until the next heading of equal or higher rank,
+    producing a proper hierarchy: H3 nested inside H2, H4 inside H3, etc.
+    """
+    parts = re.split(r'(<h[2-6][^>]*>.*?</h[2-6]>)', body, flags=re.DOTALL)
+
+    # Stack entries: [level, cls, heading_inner_html, content_parts_list]
+    stack = []
     result = []
-    i = 0
-    while i < len(parts):
-        part = parts[i]
-        m = re.match(r'<h2[^>]*>(.*?)</h2>', part, re.DOTALL)
-        if m:
-            heading_html = m.group(1)
-            content = parts[i + 1] if i + 1 < len(parts) else ""
-            result.append(
-                f'<details open class="h2-section">'
-                f'<summary class="h2-toggle">{heading_html}</summary>'
-                f'{content}'
-                f'</details>\n'
-            )
-            i += 2
+
+    def _flush_top():
+        level, cls, heading, content = stack.pop()
+        closed = (
+            f'<details open class="{cls}-section">'
+            f'<summary class="{cls}-toggle header-toggle">{heading}</summary>'
+            f'{"".join(content)}'
+            f'</details>\n'
+        )
+        if stack:
+            stack[-1][3].append(closed)
         else:
-            result.append(part)
-            i += 1
+            result.append(closed)
+
+    for part in parts:
+        m = re.match(r'<h([2-6])[^>]*>(.*?)</h[2-6]>', part, re.DOTALL)
+        if m:
+            level = int(m.group(1))
+            heading_html = m.group(2)
+            cls = f"h{level}"
+            # Close all open sections of same or deeper level
+            while stack and stack[-1][0] >= level:
+                _flush_top()
+            stack.append([level, cls, heading_html, []])
+        else:
+            if stack:
+                stack[-1][3].append(part)
+            else:
+                result.append(part)
+
+    while stack:
+        _flush_top()
+
     return "".join(result)
 
 
 def _build_css(settings) -> str:
-    ff = settings["font_family"]
-    fs = settings["font_size"]
+    # MD view may use its own font family / size; fall back to editor values.
+    ff = settings.get("md_font_family") or settings["font_family"]
+    fs = settings.get("md_font_size") or settings["font_size"]
     tc = settings["text_color"]
     bc = settings["bg_color"]
     hc = settings["heading_color"]
@@ -75,35 +148,28 @@ body {{
 p {{
     margin: {ps} 0;
 }}
-h1, h3, h4, h5, h6 {{
+h1 {{
     color: {hc};
+    font-size: 2em;
     line-height: 1.3;
     margin-top: 1.4em;
     margin-bottom: .4em;
-}}
-h1 {{
-    font-size: 2em;
     border-bottom: 1px solid rgba(128,128,128,0.25);
     padding-bottom: .3em;
 }}
-/* H2 is rendered as summary.h2-toggle — styles below */
-summary.h2-toggle {{
+/* H2–H6 are rendered as summary.hN-toggle inside <details> */
+summary.header-toggle {{
     cursor: pointer;
     list-style: none;
     display: block;
     user-select: none;
     outline: none;
-    font-size: 1.5em;
     font-weight: bold;
     color: {hc};
-    border-bottom: 1px solid rgba(128,128,128,0.15);
-    padding-bottom: .2em;
-    margin-top: 1.4em;
-    margin-bottom: .4em;
     line-height: 1.3;
 }}
-summary.h2-toggle::-webkit-details-marker {{ display: none; }}
-summary.h2-toggle::before {{
+summary.header-toggle::-webkit-details-marker {{ display: none; }}
+summary.header-toggle::before {{
     content: '▶ ';
     font-size: 0.65em;
     color: {hc};
@@ -112,7 +178,35 @@ summary.h2-toggle::before {{
     vertical-align: middle;
     opacity: 0.7;
 }}
-details[open] > summary.h2-toggle::before {{ content: '▼ '; }}
+details[open] > summary.header-toggle::before {{ content: '▼ '; }}
+summary.h2-toggle {{
+    font-size: 1.5em;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    padding-bottom: .2em;
+    margin-top: 1.4em;
+    margin-bottom: .4em;
+}}
+summary.h3-toggle {{
+    font-size: 1.25em;
+    margin-top: 1.2em;
+    margin-bottom: .3em;
+}}
+summary.h4-toggle {{
+    font-size: 1.1em;
+    margin-top: 1em;
+    margin-bottom: .25em;
+}}
+summary.h5-toggle {{
+    font-size: 1em;
+    margin-top: .9em;
+    margin-bottom: .2em;
+}}
+summary.h6-toggle {{
+    font-size: .9em;
+    margin-top: .8em;
+    margin-bottom: .2em;
+    opacity: 0.85;
+}}
 ul, ol {{
     padding-left: 1.4em;
     margin: .3em 0;
@@ -216,6 +310,11 @@ a {{ color: {hc}; text-decoration: underline; }}
 del {{ text-decoration: line-through; opacity: .65; }}
 sup {{ font-size: .75em; vertical-align: super; }}
 sub {{ font-size: .75em; vertical-align: sub; }}
+.nav-focus {{
+    outline: 2px solid rgba(128,128,128,0.35);
+    border-radius: 3px;
+    background: rgba(128,128,128,0.07);
+}}
 """
 
 
@@ -246,22 +345,113 @@ function expandAll() {
         d.setAttribute('open', '');
     });
 }
+
+// ---- Keyboard navigation in MD view ----
+(function() {
+    var navIndex = -1;
+
+    function visibleNavItems() {
+        // Collect all candidate elements that are currently visible (not inside a closed <details>)
+        return Array.from(document.querySelectorAll(
+            'p, h1, summary.header-toggle, summary.cl-toggle, li.leaf-item, pre, blockquote'
+        )).filter(function(el) {
+            // A <summary> is always visible inside its own <details> (open or closed);
+            // start the ancestor check from the grandparent so a collapsed parent
+            // does not hide its own summary toggle.
+            var node = (el.tagName === 'SUMMARY')
+                ? (el.parentElement ? el.parentElement.parentElement : null)
+                : el.parentElement;
+            while (node) {
+                if (node.tagName === 'DETAILS' && !node.hasAttribute('open')) return false;
+                node = node.parentElement;
+            }
+            return true;
+        });
+    }
+
+    function clearFocus(items) {
+        items.forEach(function(el) { el.classList.remove('nav-focus'); });
+    }
+
+    function applyFocus(items, idx) {
+        if (idx < 0 || idx >= items.length) return;
+        items[idx].classList.add('nav-focus');
+        items[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+
+    document.addEventListener('keydown', function(e) {
+        var items = visibleNavItems();
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            clearFocus(items);
+            navIndex = Math.min(navIndex + 1, items.length - 1);
+            applyFocus(items, navIndex);
+
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            clearFocus(items);
+            navIndex = Math.max(navIndex - 1, 0);
+            applyFocus(items, navIndex);
+
+        } else if (e.key === 'ArrowRight') {
+            if (navIndex < 0 || navIndex >= items.length) return;
+            var el = items[navIndex];
+            if (el.tagName === 'SUMMARY') {
+                var det = el.parentElement;
+                if (det && det.tagName === 'DETAILS' && !det.hasAttribute('open')) {
+                    e.preventDefault();
+                    det.setAttribute('open', '');
+                    // Re-focus same logical item after DOM update
+                    var newItems = visibleNavItems();
+                    var newIdx = newItems.indexOf(el);
+                    clearFocus(newItems);
+                    navIndex = newIdx >= 0 ? newIdx : navIndex;
+                    applyFocus(newItems, navIndex);
+                }
+            }
+
+        } else if (e.key === 'ArrowLeft') {
+            if (navIndex < 0 || navIndex >= items.length) return;
+            var el = items[navIndex];
+            if (el.tagName === 'SUMMARY') {
+                var det = el.parentElement;
+                if (det && det.tagName === 'DETAILS' && det.hasAttribute('open')) {
+                    e.preventDefault();
+                    det.removeAttribute('open');
+                    var newItems = visibleNavItems();
+                    var newIdx = newItems.indexOf(el);
+                    clearFocus(newItems);
+                    navIndex = newIdx >= 0 ? newIdx : Math.min(navIndex, newItems.length - 1);
+                    applyFocus(newItems, navIndex);
+                }
+            }
+        }
+    });
+})();
 """
 
 
 def render_markdown(text: str, settings) -> str:
+    # Protect $...$ / $$...$$ before Markdown parsing so mistune never sees
+    # underscores, asterisks, or angle brackets inside LaTeX expressions.
+    protected, placeholders = _protect_math(text)
+
     renderer = CollapsibleRenderer()
     md = mistune.create_markdown(
         renderer=renderer,
         plugins=["strikethrough", "table", "footnotes", "task_lists"],
     )
-    body = md(text) if text.strip() else "<p><em>(empty document)</em></p>"
-    body = _wrap_h2_sections(body)
+    body = md(protected) if protected.strip() else "<p><em>(empty document)</em></p>"
+    body = _restore_math(body, placeholders)
+    body = _wrap_header_sections(body)
     css = _build_css(settings)
     return (
         "<!DOCTYPE html>\n<html>\n<head>\n"
         '<meta charset="utf-8">\n'
         f"<style>{css}</style>\n"
+        f"{_KATEX_HEAD}"
         "</head>\n<body>\n"
         f"{body}\n"
         f"<script>{_JS}</script>\n"

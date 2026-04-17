@@ -1,2 +1,2 @@
-__version__ = "1.0.6"
+__version__ = "1.0.8"
 APP_NAME = "Markitos Editor"

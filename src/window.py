@@ -1,9 +1,11 @@
 import os
 import re
+from datetime import datetime
 
 from PyQt6.QtCore import Qt, QUrl, QEvent, QRect, QSize, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
+    QImage,
     QKeySequence,
     QFont,
     QFontMetrics,
@@ -238,6 +240,7 @@ class _LineNumberArea(QWidget):
 class _Editor(QPlainTextEdit):
     ctrl_scroll = pyqtSignal(int)
     paste_done  = pyqtSignal()
+    paste_image = pyqtSignal(object)  # QImage
 
     def __init__(self):
         super().__init__()
@@ -343,14 +346,19 @@ class _Editor(QPlainTextEdit):
         ctrl = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
         shift = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
 
-        if ctrl and not shift and key == Qt.Key.Key_Up:
+        if ctrl and not shift and key == Qt.Key.Key_B:
+            self._toggle_format("**")
+        elif ctrl and not shift and key == Qt.Key.Key_I:
+            self._toggle_format("*")
+        elif ctrl and not shift and key == Qt.Key.Key_Up:
             sb = self.verticalScrollBar()
             sb.setValue(sb.value() - 1)
         elif ctrl and not shift and key == Qt.Key.Key_Down:
             sb = self.verticalScrollBar()
             sb.setValue(sb.value() + 1)
         elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not ctrl:
-            self._smart_enter()
+            if not self._smart_enter():
+                super().keyPressEvent(event)
         elif key == Qt.Key.Key_Tab and not event.modifiers():
             self._indent_line()
         elif key == Qt.Key.Key_Backtab:
@@ -370,7 +378,12 @@ class _Editor(QPlainTextEdit):
             super().keyPressEvent(event)
 
     def insertFromMimeData(self, source):
-        """Paste plain text; if a URL is pasted onto selected text → [text](uri)."""
+        """Paste plain text; images → signal; URLs onto selection → [text](uri)."""
+        if source.hasImage():
+            img = source.imageData()
+            if isinstance(img, QImage) and not img.isNull():
+                self.paste_image.emit(img)
+                return
         text = source.text().strip()
         cursor = self.textCursor()
         if cursor.hasSelection() and re.match(r"^https?://|^ftp://|^file://", text):
@@ -464,7 +477,35 @@ class _Editor(QPlainTextEdit):
             cursor.movePosition(QTextCursor.MoveOperation.Left)
         self.setTextCursor(cursor)
 
-    def _smart_enter(self):
+    def _toggle_format(self, marker: str):
+        """Wrap/unwrap the current selection with a Markdown inline marker.
+
+        marker="*"  → italic,  marker="**" → bold.
+        If the selection is already wrapped, the markers are removed instead.
+        With no selection, inserts the marker pair and places the cursor between them.
+        """
+        cursor = self.textCursor()
+        ml = len(marker)
+        if cursor.hasSelection():
+            selected = cursor.selectedText()
+            if (selected.startswith(marker) and selected.endswith(marker)
+                    and len(selected) > 2 * ml):
+                cursor.insertText(selected[ml:-ml])
+            else:
+                cursor.insertText(f"{marker}{selected}{marker}")
+            self.setTextCursor(cursor)
+        else:
+            pos = cursor.position()
+            cursor.insertText(f"{marker}{marker}")
+            cursor.setPosition(pos + ml)
+            self.setTextCursor(cursor)
+
+    def _smart_enter(self) -> bool:
+        """Handle Enter key for list continuation.
+
+        Returns True if the event was handled (list context), False to let
+        the caller fall through to the default Qt key handler (plain lines).
+        """
         cursor = self.textCursor()
         line = cursor.block().text()
 
@@ -480,17 +521,22 @@ class _Editor(QPlainTextEdit):
             m = re.match(r"^(\d+)\. +", stripped)
             marker = (str(int(m.group(1)) + 1) + ". ") if m else ""
 
+        # No list marker → let Qt insert a plain newline
+        if not marker:
+            return False
+
         # Empty list item (marker with no content) → remove marker, stop list
-        if marker and not stripped[len(marker):].strip():
+        if not stripped[len(marker):].strip():
             cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
             cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock,
                                 QTextCursor.MoveMode.KeepAnchor)
             cursor.insertText(indent_str)
             self.setTextCursor(cursor)
-            return
+            return True
 
         cursor.insertText("\n" + indent_str + marker)
         self.setTextCursor(cursor)
+        return True
 
     def _indent_line(self):
         cursor = self.textCursor()
@@ -644,11 +690,14 @@ class MainWindow(QMainWindow):
         self._viewer.page().setBackgroundColor(QColor(self.settings["bg_color"]))
         self._viewer.loadFinished.connect(self._on_view_loaded)
         self._pending_scroll = None
+        self._view_scroll_ratio = 0.0   # kept in sync by scrollPositionChanged
+        self._viewer.page().scrollPositionChanged.connect(self._on_viewer_scroll)
         self._stack.addWidget(self._viewer)
 
         self._editor = _Editor()
         self._editor.ctrl_scroll.connect(self._on_ctrl_scroll)
         self._editor.paste_done.connect(self._apply_editor_style)
+        self._editor.paste_image.connect(self._on_paste_image)
         self._editor.textChanged.connect(self._mark_modified)
         self._editor.textChanged.connect(self._update_status_counts)
         self._editor.cursorPositionChanged.connect(self._update_status_counts)
@@ -664,13 +713,9 @@ class MainWindow(QMainWindow):
         self._status = QStatusBar()
         self.setStatusBar(self._status)
 
-        # Left: mode button — shows current mode and toggles on click.
-        self._lbl_mode = QPushButton("Ready")
-        self._lbl_mode.setFlat(True)
-        self._lbl_mode.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._lbl_mode.setToolTip("Click to toggle Text / Markdown view")
+        # Left: mode indicator (read-only label — use the toolbar button to toggle).
+        self._lbl_mode = QLabel("Ready")
         self._lbl_mode.setContentsMargins(4, 0, 8, 0)
-        self._lbl_mode.clicked.connect(self.toggle_mode)
         self._status.addWidget(self._lbl_mode)
 
         # Right: permanent info labels — always visible regardless of messages.
@@ -891,6 +936,7 @@ class MainWindow(QMainWindow):
             self._stack.setCurrentWidget(self._viewer)
             self._mode_btn.setText("Text")
             self._toggle_act.setText("Switch to &Text editor")
+        self._lbl_mode.setText("Markdown view")
         self._render_view()
 
     def save_file(self):
@@ -921,6 +967,22 @@ class MainWindow(QMainWindow):
             self.settings["open_dir"] = os.path.dirname(path)
             self._rebuild_recent_menu()
             self._update_title()
+
+    def _on_paste_image(self, img: QImage):
+        """Save a pasted image to the configured folder and insert a Markdown image link."""
+        if not self.current_file:
+            self._status.showMessage("Save the document first to paste images.", 4000)
+            return
+        folder = self.settings.get("image_paste_folder", "assets").strip() or "assets"
+        img_dir = os.path.join(os.path.dirname(self.current_file), folder)
+        os.makedirs(img_dir, exist_ok=True)
+        name = "image-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".png"
+        dest = os.path.join(img_dir, name)
+        if not img.save(dest, "PNG"):
+            self._status.showMessage("Failed to save pasted image.", 4000)
+            return
+        self._editor.insertPlainText(f"![image]({folder}/{name})")
+        self._status.showMessage(f"Image saved: {folder}/{name}", 3000)
 
     def _write_file(self, path: str):
         try:
@@ -1002,20 +1064,37 @@ class MainWindow(QMainWindow):
         self._apply_editor_style()
         self._lbl_mode.setText("Text editor")
 
-        # Query the viewer's current scroll ratio and restore the matching
-        # position in the editor, keeping the user at the same content spot.
-        self._viewer.page().runJavaScript(
-            "window.scrollY / Math.max(1, document.body.scrollHeight - window.innerHeight)",
-            self._restore_editor_scroll,
-        )
+        # Restore editor position using the scroll ratio we track synchronously.
+        # If the page hasn't finished loading/scrolling yet (_pending_scroll still
+        # set), use the intended ratio and discard the pending scroll so the now-
+        # hidden viewer is not scrolled after we leave.
+        if self._pending_scroll is not None:
+            ratio = self._pending_scroll
+            self._pending_scroll = None
+        else:
+            ratio = self._view_scroll_ratio
+        self._restore_editor_scroll(ratio)
 
         # Give focus directly if the window is already active (normal case).
         # If not active (e.g. after drag-and-drop), changeEvent(WindowActivate)
         # will give focus once the user activates the window.
         self._editor.setFocus(Qt.FocusReason.OtherFocusReason)
 
+    def _on_viewer_scroll(self, pos):
+        """Keep _view_scroll_ratio in sync whenever the viewer scrolls."""
+        cs = self._viewer.page().contentsSize()
+        denom = max(1.0, cs.height() - self._viewer.height())
+        self._view_scroll_ratio = min(1.0, max(0.0, pos.y() / denom))
+
     def _restore_editor_scroll(self, ratio):
-        """Position the editor at the block corresponding to the viewer's scroll ratio."""
+        """Position the editor at the block corresponding to the viewer's scroll ratio.
+
+        The cursor is set synchronously (so a subsequent text→MD switch captures
+        the right position).  The viewport scroll is deferred one event-loop tick
+        so Qt has time to finish the layout invalidation triggered by setFont()
+        inside _apply_editor_style — otherwise centerCursor() uses stale geometry
+        and snaps to the top of the document.
+        """
         if not ratio:
             ratio = 0.0
         doc = self._editor.document()
@@ -1023,8 +1102,12 @@ class MainWindow(QMainWindow):
         target_block = round(ratio * total)
         block = doc.findBlockByNumber(target_block)
         cursor = QTextCursor(block)
-        self._editor.setTextCursor(cursor)
-        self._editor.centerCursor()
+        self._editor.setTextCursor(cursor)   # synchronous — captured by next toggle
+
+        def _apply_scroll():
+            sb = self._editor.verticalScrollBar()
+            sb.setValue(round(ratio * sb.maximum()))
+        QTimer.singleShot(0, _apply_scroll)
 
     # ---------------------------------------------------------------- rendering
 
@@ -1034,11 +1117,18 @@ class MainWindow(QMainWindow):
             total = max(self._editor.document().blockCount() - 1, 1)
             self._pending_scroll = cur.blockNumber() / total
         html = render_markdown(self._editor.toPlainText(), self.settings)
-        self._viewer.setHtml(html, QUrl("about:blank"))
+        if self.current_file:
+            base_url = QUrl.fromLocalFile(os.path.dirname(self.current_file) + os.sep)
+        else:
+            base_url = QUrl("about:blank")
+        self._viewer.setHtml(html, base_url)
 
     def _on_view_loaded(self, ok):
         if ok and self._pending_scroll is not None:
             ratio = self._pending_scroll
+            # Pre-seed the synchronous tracker so switch_to_edit_mode has a
+            # valid ratio even in the brief window before scrollPositionChanged fires.
+            self._view_scroll_ratio = ratio
             self._viewer.page().runJavaScript(
                 f"var t = document.body.scrollHeight * {ratio:.4f};"
                 f"window.scrollTo(0, Math.max(0, t - window.innerHeight / 2));"

@@ -78,16 +78,33 @@ class AppearanceDialog(QDialog):
         app_grp = QGroupBox("Settings")
         form = QFormLayout(app_grp)
 
+        families = sorted(QFontDatabase.families())
+
         self.font_combo = QComboBox()
         self.font_combo.setMaxVisibleItems(20)
-        for family in sorted(QFontDatabase.families()):
+        for family in families:
             self.font_combo.addItem(family)
-        form.addRow("Font family:", self.font_combo)
+        form.addRow("Editor font family:", self.font_combo)
 
         self.font_size_spin = QSpinBox()
         self.font_size_spin.setRange(8, 72)
         self.font_size_spin.setSuffix(" pt")
-        form.addRow("Font size:", self.font_size_spin)
+        form.addRow("Editor font size:", self.font_size_spin)
+
+        # Markdown-view font (independent from the text-editor font)
+        self.md_font_combo = QComboBox()
+        self.md_font_combo.setMaxVisibleItems(20)
+        self.md_font_combo.addItem("(same as editor)", "")   # userData="" → no override
+        for family in families:
+            self.md_font_combo.addItem(family, family)
+        form.addRow("Markdown font family:", self.md_font_combo)
+
+        self.md_font_size_spin = QSpinBox()
+        self.md_font_size_spin.setRange(0, 72)
+        self.md_font_size_spin.setSuffix(" pt")
+        self.md_font_size_spin.setSpecialValueText("same as editor")
+        self.md_font_size_spin.setToolTip("0 = same as editor font size")
+        form.addRow("Markdown font size:", self.md_font_size_spin)
 
         row = QHBoxLayout()
         self.text_color_btn = ColorButton("#000000")
@@ -172,6 +189,21 @@ class AppearanceDialog(QDialog):
 
         layout.addWidget(guide_grp)
 
+        # Image paste group
+        img_grp = QGroupBox("Image Paste (text editor)")
+        img_form = QFormLayout(img_grp)
+
+        self.image_folder_edit = QLineEdit()
+        self.image_folder_edit.setPlaceholderText("e.g. assets, images, media")
+        self.image_folder_edit.setToolTip(
+            "Folder where pasted images are saved, relative to the open .md file.\n"
+            "Created automatically if it does not exist."
+        )
+        self.image_folder_edit.setMaximumWidth(200)
+        img_form.addRow("Image folder:", self.image_folder_edit)
+
+        layout.addWidget(img_grp)
+
         # Shortcuts group
         sc_grp = QGroupBox("Keyboard Shortcuts")
         sc_form = QFormLayout(sc_grp)
@@ -201,6 +233,14 @@ class AppearanceDialog(QDialog):
         if idx >= 0:
             self.font_combo.setCurrentIndex(idx)
         self.font_size_spin.setValue(s["font_size"])
+
+        md_ff = s.get("md_font_family", "")
+        if md_ff:
+            md_idx = self.md_font_combo.findData(md_ff)
+            self.md_font_combo.setCurrentIndex(md_idx if md_idx >= 0 else 0)
+        else:
+            self.md_font_combo.setCurrentIndex(0)
+        self.md_font_size_spin.setValue(int(s.get("md_font_size", 0)))
         self.text_color_btn.set_color(s["text_color"])
         self.bg_color_btn.set_color(s["bg_color"])
         self.heading_color_btn.set_color(s["heading_color"])
@@ -225,6 +265,7 @@ class AppearanceDialog(QDialog):
         self.toggle_sc.setKeySequence(QKeySequence(s.get("toggle_mode_shortcut", "Ctrl+Shift+Return")))
         self.collapse_sc.setKeySequence(QKeySequence(s["collapse_all_shortcut"]))
         self.expand_sc.setKeySequence(QKeySequence(s["expand_all_shortcut"]))
+        self.image_folder_edit.setText(s.get("image_paste_folder", "assets"))
 
     def _connect_live_signals(self):
         self.line_spacing_edit.textChanged.connect(self._on_live_change)
@@ -236,6 +277,8 @@ class AppearanceDialog(QDialog):
         self.ln_bg_color_btn.color_changed.connect(self._on_live_change)
         self.font_combo.currentTextChanged.connect(self._on_live_change)
         self.font_size_spin.valueChanged.connect(self._on_live_change)
+        self.md_font_combo.currentIndexChanged.connect(self._on_live_change)
+        self.md_font_size_spin.valueChanged.connect(self._on_live_change)
         self.text_color_btn.color_changed.connect(self._on_live_change)
         self.bg_color_btn.color_changed.connect(self._on_live_change)
         self.heading_color_btn.color_changed.connect(self._on_live_change)
@@ -269,6 +312,8 @@ class AppearanceDialog(QDialog):
         )
         self.settings["font_family"] = self.font_combo.currentText()
         self.settings["font_size"] = self.font_size_spin.value()
+        self.settings["md_font_family"] = self.md_font_combo.currentData() or ""
+        self.settings["md_font_size"] = self.md_font_size_spin.value()
         self.settings["text_color"] = self.text_color_btn.color()
         self.settings["bg_color"] = self.bg_color_btn.color()
         self.settings["heading_color"] = self.heading_color_btn.color()
@@ -285,6 +330,9 @@ class AppearanceDialog(QDialog):
         ks_expand = self.expand_sc.keySequence()
         if not ks_expand.isEmpty():
             self.settings["expand_all_shortcut"] = ks_expand.toString()
+        folder = self.image_folder_edit.text().strip()
+        if folder:
+            self.settings["image_paste_folder"] = folder
 
     def apply_final(self):
         """Persist all values including shortcuts before accepting."""
