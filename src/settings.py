@@ -62,6 +62,7 @@ class Settings:
     _SESSION_KEYS = (
         "window_x", "window_y", "window_width", "window_height",
         "recent_files", "last_file", "open_dir", "word_wrap",
+        "font_size",
     )
 
     def save_geometry(self):
