@@ -1,4 +1,4 @@
-# Markitos Editor &nbsp; v1.0.8
+# Markitos Editor &nbsp; v1.0.9
 
 A lightweight desktop Markdown viewer and editor with **collapsible bullet lists**, LaTeX math rendering, and live appearance customization. Built with Python and PyQt6.
 
@@ -28,7 +28,8 @@ A lightweight desktop Markdown viewer and editor with **collapsible bullet lists
 - Smart editing — auto-pair `[]`/`()`, smart Enter continues list markers (plain lines use default newline), auto-renumbers ordered lists on deletion, Tab/Shift+Tab indent/dedent (4 spaces), full undo/redo (Ctrl+Z / Ctrl+Y), URL-paste onto selected text creates a Markdown link
 - **Image paste** (text editor) — paste an image from the clipboard and it is saved automatically as `assets/image-YYYYMMDD-HHMMSS.png` next to the open file; a `![image](assets/…)` link is inserted at the cursor
 - **Keyboard navigation** (Markdown view) — `↑`/`↓` moves focus between paragraphs, headings, list items, code blocks, and blockquotes (focused element scrolls to centre); `→` expands a collapsed list parent; `←` collapses an open list parent
-- Settings and window geometry persisted across sessions (`~/.config/markitos/settings.json`)
+- **File link navigation** — write a standard Markdown link to any `.md` or `.txt` file (relative or absolute path); clicking it in Markdown view opens the file in a new Markitos window, cascaded 30 px from the current one
+- Settings persisted immediately when the settings dialog is confirmed; window geometry saved on close (`~/.config/markitos/settings.json`)
 - PyQt6 with `QWebEngineView` (Chromium) for full HTML5/CSS3 rendering
 
 ---

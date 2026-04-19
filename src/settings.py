@@ -56,6 +56,18 @@ class Settings:
         with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(self._data, f, indent=2)
 
+    def save_geometry(self):
+        """Reload settings from disk and update only the window geometry keys."""
+        try:
+            with open(self.config_path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        for key in ("window_x", "window_y", "window_width", "window_height"):
+            data[key] = self._data[key]
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
     def copy(self) -> dict:
         """Return a shallow copy of the current settings data."""
         return dict(self._data)

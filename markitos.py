@@ -54,6 +54,19 @@ def main():
         if os.path.isfile(path) and path.lower().endswith((".md", ".txt")):
             window._load_file(path)
 
+    # Optional window position override (passed by parent instance on link-open)
+    x, y = None, None
+    for arg in sys.argv[2:]:
+        if arg.startswith("--x="):
+            try: x = int(arg[4:])
+            except ValueError: pass
+        elif arg.startswith("--y="):
+            try: y = int(arg[4:])
+            except ValueError: pass
+    if x is not None or y is not None:
+        window.move(x if x is not None else window.x(),
+                    y if y is not None else window.y())
+
     sys.exit(app.exec())
 
 

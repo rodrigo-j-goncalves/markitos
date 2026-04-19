@@ -1,5 +1,7 @@
 import os
 import re
+import subprocess
+import sys
 from datetime import datetime
 
 from PyQt6.QtCore import Qt, QUrl, QEvent, QRect, QSize, QTimer, pyqtSignal
@@ -49,6 +51,30 @@ from .version import __version__, APP_NAME
 
 ZOOM_MIN = 6
 ZOOM_MAX = 72
+
+_MARKITOS_SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "markitos.py",
+)
+
+# ---------------------------------------------------------------------------
+# Custom page — intercept file:// link clicks to open in a new instance
+# ---------------------------------------------------------------------------
+
+class _Page(QWebEnginePage):
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        if (nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
+                and url.isLocalFile()):
+            path = url.toLocalFile()
+            if path.lower().endswith((".md", ".txt")) and os.path.isfile(path):
+                win = self.parent().window()
+                x = win.x() + 30
+                y = win.y() + 30
+                subprocess.Popen([sys.executable, _MARKITOS_SCRIPT, path,
+                                  f"--x={x}", f"--y={y}"])
+                return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
 
 # ---------------------------------------------------------------------------
 # Custom widgets — intercept Ctrl+Scroll before the widget consumes it
@@ -686,6 +712,7 @@ class MainWindow(QMainWindow):
         vbox.addWidget(self._stack)
 
         self._viewer = _WebView()
+        self._viewer.setPage(_Page(self._viewer))
         self._viewer.settings().setAttribute(
             QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
         )
@@ -1090,10 +1117,11 @@ class MainWindow(QMainWindow):
                 self._restore_editor_to_heading,
             )
 
-        # Give focus directly if the window is already active (normal case).
-        # If not active (e.g. after drag-and-drop), changeEvent(WindowActivate)
-        # will give focus once the user activates the window.
-        self._editor.setFocus(Qt.FocusReason.OtherFocusReason)
+        # Defer focus so it fires after any pending window-activation events
+        # (e.g. after drag-and-drop the activation settles one tick later).
+        # changeEvent(WindowActivate) also calls setFocus if the window
+        # becomes active after this point.
+        QTimer.singleShot(0, lambda: self._editor.setFocus(Qt.FocusReason.OtherFocusReason))
 
     def _restore_editor_to_heading(self, heading_text):
         """Position the editor cursor at the source heading matching heading_text.
@@ -1177,10 +1205,15 @@ class MainWindow(QMainWindow):
             # Use the cursor block: the user places their cursor at the paragraph
             # they want to remain visible when switching to MD view.
             block_num = self._editor.textCursor().blockNumber()
-            heading, _ = self._nearest_heading_above(block_num)
             total = max(self._editor.document().blockCount() - 1, 1)
-            self._pending_scroll_heading = heading
             self._pending_scroll = block_num / total
+            # Use heading-based sync only when the cursor is exactly on a heading
+            # line — that maps precisely to a rendered <summary> element and also
+            # seeds the MD keyboard-nav index.  For all other positions (cursor
+            # between or after headings) ratio-based scroll is more accurate.
+            current_text = self._editor.document().findBlockByNumber(block_num).text()
+            m = re.match(r'^#{1,6}\s+(.*)', current_text)
+            self._pending_scroll_heading = self._heading_display_text(m.group(1)) if m else None
         html = render_markdown(self._editor.toPlainText(), self.settings)
         if self.current_file:
             base_url = QUrl.fromLocalFile(os.path.dirname(self.current_file) + os.sep)
@@ -1361,6 +1394,7 @@ class MainWindow(QMainWindow):
         if result == QDialog.DialogCode.Accepted:
             dlg.apply_final()
             self._update_configurable_shortcuts()
+            self.settings.save()
         else:
             self.settings.restore(saved)
         self._on_appearance_live()
@@ -1472,7 +1506,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if self._confirm_discard():
             self._save_geometry()
-            self.settings.save()
+            self.settings.save_geometry()
             event.accept()
         else:
             event.ignore()
