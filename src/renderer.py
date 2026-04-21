@@ -65,7 +65,7 @@ class CollapsibleRenderer(HTMLRenderer):
                 r"^\s*<p>(.*?)</p>\s*$", r"\1", item_content, flags=re.DOTALL
             ).strip()
             return (
-                f'<li><details open>'
+                f'<li><details>'
                 f'<summary class="cl-toggle">{item_content}</summary>'
                 f"\n{nested}\n</details></li>\n"
             )
@@ -92,7 +92,7 @@ def _wrap_header_sections(body: str) -> str:
     def _flush_top():
         level, cls, heading, content = stack.pop()
         closed = (
-            f'<details open class="{cls}-section">'
+            f'<details class="{cls}-section">'
             f'<summary class="{cls}-toggle header-toggle">{heading}</summary>'
             f'{"".join(content)}'
             f'</details>\n'
@@ -376,6 +376,22 @@ function expandAll() {
         items[idx].classList.add('nav-focus');
         items[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
+
+    // Called from Python after a ratio-based scroll (non-heading position) so
+    // that navIndex is seeded to the item nearest the viewport centre.
+    // Does NOT call scrollIntoView — the page is already at the right place.
+    window.__mdNavInitByScroll = function() {
+        var items = visibleNavItems();
+        clearFocus(items);
+        navIndex = -1;
+        var mid = window.innerHeight / 2;
+        var bestDist = Infinity;
+        for (var i = 0; i < items.length; i++) {
+            var dist = Math.abs(items[i].getBoundingClientRect().top - mid);
+            if (dist < bestDist) { bestDist = dist; navIndex = i; }
+        }
+        if (navIndex >= 0) { items[navIndex].classList.add('nav-focus'); }
+    };
 
     // Called from Python after mode switch to pre-select the correct item so
     // that the first Down/Up keypress continues from the right place.

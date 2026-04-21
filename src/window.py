@@ -1020,11 +1020,10 @@ class MainWindow(QMainWindow):
         self._status.showMessage(f"Opened: {os.path.basename(path)}", 3000)
 
         # Always show the rendered view after opening
-        if not self.view_mode:
-            self.view_mode = True
-            self._stack.setCurrentWidget(self._viewer)
-            self._md_btn.setChecked(True)
-            self._toggle_act.setText("Switch to &Text editor")
+        self.view_mode = True
+        self._stack.setCurrentWidget(self._viewer)
+        self._md_btn.setChecked(True)
+        self._toggle_act.setText("Switch to &Text editor")
         self._lbl_mode.setText("Markdown view")
         self._render_view()
 
@@ -1304,6 +1303,7 @@ class MainWindow(QMainWindow):
                 f'(function(){{'
                 f'  var t=document.body.scrollHeight*{ratio:.4f};'
                 f'  window.scrollTo(0,Math.max(0,t-window.innerHeight/2));'
+                f'  window.__mdNavInitByScroll();'
                 f'}})()'
             )
 
