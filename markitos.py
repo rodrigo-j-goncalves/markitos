@@ -87,6 +87,10 @@ def main():
     # Open file passed as command-line argument
     if len(sys.argv) > 1:
         path = sys.argv[1]
+        # File managers (e.g. Krusader) may pass a file:// URI instead of a plain path
+        if path.startswith("file://"):
+            from urllib.parse import urlparse, unquote
+            path = unquote(urlparse(path).path)
         if os.path.isfile(path) and path.lower().endswith((".md", ".txt")):
             window._load_file(path)
 
