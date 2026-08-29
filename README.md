@@ -1,6 +1,10 @@
 # Markitos Editor &nbsp; v1.2.0
 
-A lightweight desktop Markdown viewer and editor with **collapsible sections**, an **outline sidebar**, LaTeX math rendering, and live appearance customization. Built with Python and PyQt6.
+A lightweight desktop Markdown viewer and editor with **collapsible sections**, an **outline sidebar**, **website viewer**, LaTeX math rendering, and live appearance customization. 
+
+Use it to take notes, organize your lists, and share easily to any other application. 
+
+And it's completely free and open.
 
 
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)
