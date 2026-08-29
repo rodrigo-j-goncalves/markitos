@@ -1,6 +1,6 @@
 # Markitos Editor &nbsp; v1.2.0
 
-A lightweight desktop Markdown viewer and editor with **collapsible sections**, an **outline sidebar**, **website viewer**, LaTeX math rendering, and live appearance customization. 
+A lightweight desktop Markdown **viewer and editor** with **website viewer**, **collapsible sections**, an **outline sidebar**, LaTeX math rendering, and live appearance customization. 
 
 Use it to take notes, organize your lists, and share easily to any other application. 
 
