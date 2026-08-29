@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   class="svg-icon"
+   style="overflow:hidden;fill:currentColor"
+   viewBox="0 0 1456.7685 1193.1134"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="MD-icon.svg"
+   width="1456.7684"
+   height="1193.1134"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs8" />
+  <sodipodi:namedview
+     id="namedview6"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.19140625"
+     inkscape:cx="-478.04082"
+     inkscape:cy="235.10204"
+     inkscape:window-width="1920"
+     inkscape:window-height="979"
+     inkscape:window-x="0"
+     inkscape:window-y="39"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4" />
+  <g
+     id="g1308"
+     transform="translate(82.889355,67.887524)">
+    <g
+       id="g1284"
+       transform="translate(69.345032,94.047791)">
+      <rect
+         style="fill:#1a1a1a;stroke:#000000;stroke-width:0.377953;stop-color:#000000"
+         id="rect285"
+         width="1290.6118"
+         height="1056.9604"
+         x="-69.156067"
+         y="-93.858826" />
+      <path
+         d="M 58.806829,714.03167 V 117.95643 H 164.92848 L 324.11095,341.48465 483.29343,117.95643 H 589.41509 V 714.03167 H 483.29343 V 328.81804 L 324.11095,552.34626 164.92848,328.81804 V 714.03167 H 58.806829 M 801.65838,117.95643 H 960.84086 V 415.99404 H 1093.4929 L 881.24962,751.28637 669.00633,415.99404 h 132.65205 z"
+         fill="#42a5f5"
+         id="path2"
+         style="stroke-width:0.999999" />
+    </g>
+    <rect
+       style="fill:#1a1a1a;stroke:#000000;stroke-width:0.377953;stop-color:#000000"
+       id="rect1286"
+       width="1456.3905"
+       height="1192.7355"
+       x="-82.700378"
+       y="-67.698547" />
+    <path
+       d="M 128.15186,808.07946 V 212.00422 H 234.27351 L 393.45598,435.53244 552.63846,212.00422 H 658.76012 V 808.07946 H 552.63846 V 422.86583 L 393.45598,646.39405 234.27351,422.86583 V 808.07946 H 128.15186 M 871.00341,212.00422 h 159.18249 v 298.03761 h 132.652 L 950.59465,845.33416 738.35136,510.04183 h 132.65205 z"
+       fill="#42a5f5"
+       id="path1288"
+       style="stroke-width:0.999999" />
+  </g>
+</svg>

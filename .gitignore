@@ -1,0 +1,36 @@
+# Whitelist: ignore everything, then explicitly allow what goes to the repo.
+# IMPORTANT: to un-ignore a file inside a directory, the directory itself
+# must also be un-ignored (otherwise git won't descend into it).
+
+# ── Ignore everything ──────────────────────────────────────────────────────
+*
+
+# ── Root files ─────────────────────────────────────────────────────────────
+!.gitignore
+!markitos.py
+!README.md
+!requirements.txt
+!MD-icon.svg
+
+# ── src/ ───────────────────────────────────────────────────────────────────
+!src/
+!src/__init__.py
+!src/dialogs.py
+!src/renderer.py
+!src/settings.py
+!src/version.py
+!src/window.py
+
+# ── icon/ ──────────────────────────────────────────────────────────────────
+!icon/
+!icon/markdown-mark-solid_RG.svg
+!icon/markdown-mark_creator.txt
+
+# ── Explicitly excluded (local only) ───────────────────────────────────────
+# README-inDepth.md   — kept local as a reference / memory aide
+# settings.json       — user settings, machine-specific
+# settings_old.json
+# releases/           — local snapshots; releases published as GitHub Releases
+# update_markitos_*.sh
+# log00.txt  untitled.md  resume
+# .claude/

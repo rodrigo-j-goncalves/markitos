@@ -1,0 +1,8 @@
+Creator:
+Dustin Curtis
+
+Markdown Icon released it under the CC0 1.0 Universal (CC0 1.0) Public Domain Dedication.
+
+https://github.com/dcurtis/markdown-mark
+
+https://github.com/dcurtis/markdown-mark/blob/master/icon-font/modified%20svgs/markdown-mark.svg
