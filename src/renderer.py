@@ -1,4 +1,5 @@
 import re
+import html as _html
 import mistune
 from mistune.renderers.html import HTMLRenderer
 
@@ -34,6 +35,41 @@ def _restore_math(html: str, placeholders: dict) -> str:
     for key, value in placeholders.items():
         html = html.replace(key, value)
     return html
+
+
+# ---------------------------------------------------------------------------
+# YAML front matter
+# ---------------------------------------------------------------------------
+
+_FRONT_MATTER_RE = re.compile(r'\A---[ \t]*\n(.*?)\n---[ \t]*\n', re.DOTALL)
+
+
+def _extract_front_matter(text: str):
+    """Return (yaml_str, body) if front matter is present, else (None, text)."""
+    m = _FRONT_MATTER_RE.match(text)
+    if m:
+        return m.group(1), text[m.end():]
+    return None, text
+
+
+def _render_front_matter_html(yaml_str: str) -> str:
+    """Render YAML front matter as a styled metadata block."""
+    rows = []
+    for line in yaml_str.splitlines():
+        if ': ' in line:
+            key, _, val = line.partition(': ')
+            rows.append(
+                f'<tr>'
+                f'<td class="fm-key">{_html.escape(key.strip())}</td>'
+                f'<td class="fm-val">{_html.escape(val.strip())}</td>'
+                f'</tr>'
+            )
+        elif line.strip():
+            rows.append(
+                f'<tr><td colspan="2" class="fm-val">{_html.escape(line.strip())}</td></tr>'
+            )
+    table = f'<table class="fm-table">{"".join(rows)}</table>' if rows else ''
+    return f'<div class="frontmatter">{table}</div>\n'
 
 
 # KaTeX CDN snippets injected into the <head> of every rendered page.
@@ -317,6 +353,18 @@ sub {{ font-size: .75em; vertical-align: sub; }}
     border-radius: 3px;
     background: rgba(128,128,128,0.07);
 }}
+.frontmatter {{
+    border: 1px solid rgba(128,128,128,0.3);
+    border-radius: 6px;
+    background: rgba(128,128,128,0.06);
+    padding: 10px 14px;
+    margin-bottom: 1.5em;
+    font-size: 0.85em;
+}}
+.fm-table {{ border-collapse: collapse; width: 100%; margin: 0; }}
+.fm-table td {{ border: none; padding: 2px 8px 2px 0; background: transparent; }}
+.fm-key {{ color: {hc}; font-weight: 600; white-space: nowrap; width: 1%; }}
+.fm-val {{ color: {tc}; }}
 """
 
 
@@ -520,6 +568,12 @@ document.addEventListener('click', function(e) {
 
 
 def render_markdown(text: str, settings) -> str:
+    # Handle YAML front matter before any other processing
+    fm_html = ""
+    yaml_str, text = _extract_front_matter(text)
+    if yaml_str is not None and settings.get("frontmatter_mode", "hide") == "show":
+        fm_html = _render_front_matter_html(yaml_str)
+
     # Protect $...$ / $$...$$ before Markdown parsing so mistune never sees
     # underscores, asterisks, or angle brackets inside LaTeX expressions.
     protected, placeholders = _protect_math(text)
@@ -539,6 +593,7 @@ def render_markdown(text: str, settings) -> str:
         f"<style>{css}</style>\n"
         f"{_KATEX_HEAD}"
         "</head>\n<body>\n"
+        f"{fm_html}"
         f"{body}\n"
         f"<script>{_JS}</script>\n"
         "</body>\n</html>"

@@ -211,6 +211,14 @@ class AppearanceDialog(QDialog):
         self.md_width_edit.setMaximumWidth(130)
         md_form.addRow("Text width:", self.md_width_edit)
 
+        self.frontmatter_combo = QComboBox()
+        self.frontmatter_combo.addItem("Hide (strip from view)", "hide")
+        self.frontmatter_combo.addItem("Show as metadata block", "show")
+        self.frontmatter_combo.setToolTip(
+            "How to display YAML front matter (--- ... ---) at the top of a file"
+        )
+        md_form.addRow("Front matter:", self.frontmatter_combo)
+
         layout.addWidget(md_grp)
 
         # Shortcuts group
@@ -281,6 +289,8 @@ class AppearanceDialog(QDialog):
         self.collapse_sc.setKeySequence(QKeySequence(s["collapse_all_shortcut"]))
         self.expand_sc.setKeySequence(QKeySequence(s["expand_all_shortcut"]))
         self.image_folder_edit.setText(s.get("image_paste_folder", "assets"))
+        fm_idx = self.frontmatter_combo.findData(s.get("frontmatter_mode", "hide"))
+        self.frontmatter_combo.setCurrentIndex(fm_idx if fm_idx >= 0 else 0)
 
     def _connect_live_signals(self):
         self.line_spacing_edit.textChanged.connect(self._on_live_change)
@@ -301,6 +311,7 @@ class AppearanceDialog(QDialog):
         self.guide_opacity_spin.valueChanged.connect(self._on_live_change)
         self.guide_width_spin.valueChanged.connect(self._on_live_change)
         self.symbol_opacity_spin.valueChanged.connect(self._on_live_change)
+        self.frontmatter_combo.currentIndexChanged.connect(self._on_live_change)
 
     def _on_ln_bg_toggled(self, checked: bool):
         self.ln_bg_color_btn.setEnabled(not checked)
@@ -348,6 +359,7 @@ class AppearanceDialog(QDialog):
         folder = self.image_folder_edit.text().strip()
         if folder:
             self.settings["image_paste_folder"] = folder
+        self.settings["frontmatter_mode"] = self.frontmatter_combo.currentData()
 
     def apply_final(self):
         """Persist all values including shortcuts before accepting."""

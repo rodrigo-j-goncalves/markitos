@@ -36,6 +36,7 @@ class Settings:
         "image_paste_folder": "assets",  # folder for pasted images (relative to the .md file)
         "show_outline": True,
         "outline_width": 180,
+        "frontmatter_mode": "show",  # "hide" or "show"
     }
 
     def __init__(self):
