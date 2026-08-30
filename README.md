@@ -1,4 +1,4 @@
-# Markitos Editor &nbsp; v1.2.0
+# Markitos Editor &nbsp; v1.3.0
 
 A lightweight desktop Markdown **viewer and editor** with **website viewer**, **collapsible sections**, an **outline sidebar**, LaTeX math rendering, and live appearance customization. 
 
@@ -28,7 +28,8 @@ And it's completely free and open.
 - **Smart editing** — auto-pairs `[]`/`()`, smart Enter continues list markers, auto-renumbers ordered lists, Tab/Shift+Tab indent/dedent (4 spaces), URL-paste onto selected text creates a Markdown link, full undo/redo
 - Pandoc/Quarto-flavoured Markdown — tables, strikethrough, footnotes, task lists, fenced code blocks
 - Ctrl+Scroll to zoom font size (6–72 pt); word wrap toggle
-- Settings panel — font, colours, line spacing, paragraph spacing, text width, line numbers, indent guides, configurable shortcuts; all settings persisted across sessions
+- **YAML front matter** — files that begin with a `---` block (common in Obsidian, Quarto, Jekyll) are handled gracefully: choose "Hide" to strip it from the reading view, or "Show" to display it as a tidy metadata card at the top; configurable in Settings → Markdown View
+- Settings panel — font, colours, line spacing, paragraph spacing, text width, line numbers, indent guides, front matter mode, configurable shortcuts; all settings persisted across sessions
 
 ---
 
