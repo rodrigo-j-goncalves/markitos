@@ -1368,8 +1368,6 @@ class MainWindow(QMainWindow):
         self.switch_to_edit_mode()
 
     def open_file_dialog(self):
-        if not self._confirm_discard():
-            return
         start_dir = self.settings.get("open_dir", "") or os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
             self,
@@ -1377,9 +1375,15 @@ class MainWindow(QMainWindow):
             start_dir,
             "Markdown / Text (*.md *.txt);;All files (*)",
         )
-        if path:
-            self.settings["open_dir"] = os.path.dirname(path)
-            self._load_file(path)
+        if not path:
+            return
+        self.settings["open_dir"] = os.path.dirname(path)
+        if self.current_file is None:
+            if self._confirm_discard():
+                self._load_file(path)
+        else:
+            subprocess.Popen([sys.executable, _MARKITOS_SCRIPT, path,
+                              f"--x={self.x() + 30}", f"--y={self.y() + 30}"])
 
     def _load_file(self, path: str):
         try:
