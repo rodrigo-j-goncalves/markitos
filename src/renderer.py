@@ -429,6 +429,11 @@ function expandAll() {
         items[idx].scrollIntoView({ block: 'nearest', behavior: 'instant' });
     }
 
+    function applyFocusNoScroll(items, idx) {
+        if (idx < 0 || idx >= items.length) return;
+        items[idx].classList.add('nav-focus');
+    }
+
     // Called from Python after a ratio-based scroll (non-heading position) so
     // that navIndex is seeded to the item nearest the viewport centre.
     // Does NOT call scrollIntoView — the page is already at the right place.
@@ -496,13 +501,14 @@ function expandAll() {
                 var det = el.parentElement;
                 if (det && det.tagName === 'DETAILS' && !det.hasAttribute('open')) {
                     e.preventDefault();
+                    var savedY = window.scrollY;
                     det.setAttribute('open', '');
-                    // Re-focus same logical item after DOM update
                     var newItems = visibleNavItems();
                     var newIdx = newItems.indexOf(el);
                     clearFocus(newItems);
                     navIndex = newIdx >= 0 ? newIdx : navIndex;
-                    applyFocus(newItems, navIndex);
+                    applyFocusNoScroll(newItems, navIndex);
+                    window.scrollTo(0, savedY);
                 }
             }
 
@@ -513,12 +519,14 @@ function expandAll() {
                 var det = el.parentElement;
                 if (det && det.tagName === 'DETAILS' && det.hasAttribute('open')) {
                     e.preventDefault();
+                    var savedY = window.scrollY;
                     det.removeAttribute('open');
                     var newItems = visibleNavItems();
                     var newIdx = newItems.indexOf(el);
                     clearFocus(newItems);
                     navIndex = newIdx >= 0 ? newIdx : Math.min(navIndex, newItems.length - 1);
-                    applyFocus(newItems, navIndex);
+                    applyFocusNoScroll(newItems, navIndex);
+                    window.scrollTo(0, savedY);
                 }
             }
         }
@@ -538,14 +546,16 @@ function expandAll() {
         }
         if (!found) return;
         var captured = found;
+        var savedY = window.scrollY;
         // Use setTimeout so the DOM has settled after <details> open/close
         setTimeout(function() {
+            window.scrollTo(0, savedY);
             var newItems = visibleNavItems();
             var newIdx = newItems.indexOf(captured);
             if (newIdx < 0) return;
             clearFocus(newItems);
             navIndex = newIdx;
-            applyFocus(newItems, navIndex);
+            applyFocusNoScroll(newItems, navIndex);
         }, 0);
     });
 })();
