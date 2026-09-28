@@ -1357,6 +1357,10 @@ class MainWindow(QMainWindow):
     # ---------------------------------------------------------------- file ops
 
     def new_file(self):
+        if self.current_file is not None:
+            subprocess.Popen([sys.executable, _MARKITOS_SCRIPT,
+                              f"--x={self.x() + 30}", f"--y={self.y() + 30}"])
+            return
         if not self._confirm_discard():
             return
         self._editor.textChanged.disconnect(self._mark_modified)

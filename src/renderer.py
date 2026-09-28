@@ -169,6 +169,7 @@ def _build_css(settings) -> str:
     hc = settings["heading_color"]
     ls = settings.get("line_spacing", "1.65")
     ps = settings.get("para_spacing", "0.6em")
+    lst = settings.get("list_spacing", "0.3em")
     mw = settings.get("md_max_width", "50%")
     return f"""
 body {{
@@ -246,6 +247,9 @@ ul, ol {{
     margin: .3em 0;
     list-style: none;
 }}
+li {{
+    margin: {lst} 0;
+}}
 ol {{
     counter-reset: li;
 }}
@@ -256,9 +260,6 @@ li > ul, li > ol,
 details > ul, details > ol {{
     margin-left: .3em;
     padding-left: 1.1em;
-}}
-li {{
-    margin: 3px 0;
 }}
 li.leaf-item {{
     padding-left: 1.2em;

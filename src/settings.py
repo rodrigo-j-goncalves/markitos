@@ -37,6 +37,7 @@ class Settings:
         "show_outline": True,
         "outline_width": 180,
         "frontmatter_mode": "show",  # "hide" or "show"
+        "list_spacing": "3px",
     }
 
     def __init__(self):

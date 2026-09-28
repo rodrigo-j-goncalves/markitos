@@ -66,7 +66,7 @@ class AppearanceDialog(QDialog):
         super().__init__(parent)
         self.settings = settings
         self.setWindowTitle("Settings & Shortcuts")
-        self.setMinimumWidth(440)
+        self.setMinimumWidth(800)
         self._build_ui()
         self._load_values()
         self._connect_live_signals()
@@ -122,8 +122,6 @@ class AppearanceDialog(QDialog):
         row_ln.addStretch()
         editor_form.addRow("Line number background:", row_ln)
 
-        layout.addWidget(editor_grp)
-
         # ── Indent Guides group ──────────────────────────────────────────────
         guide_grp = QGroupBox("Indent Guides (text editor)")
         guide_form = QFormLayout(guide_grp)
@@ -152,8 +150,6 @@ class AppearanceDialog(QDialog):
         )
         guide_form.addRow("Symbol opacity:", self.symbol_opacity_spin)
 
-        layout.addWidget(guide_grp)
-
         # Image paste group
         img_grp = QGroupBox("Image Paste (text editor)")
         img_form = QFormLayout(img_grp)
@@ -166,8 +162,6 @@ class AppearanceDialog(QDialog):
         )
         self.image_folder_edit.setMaximumWidth(200)
         img_form.addRow("Image folder:", self.image_folder_edit)
-
-        layout.addWidget(img_grp)
 
         # ── Markdown View group ──────────────────────────────────────────────
         md_grp = QGroupBox("Markdown View")
@@ -205,6 +199,12 @@ class AppearanceDialog(QDialog):
         self.para_spacing_edit.setMaximumWidth(130)
         md_form.addRow("Paragraph spacing:", self.para_spacing_edit)
 
+        self.list_spacing_edit = QLineEdit()
+        self.list_spacing_edit.setPlaceholderText("e.g. 3px, 0.3em, 0.5em")
+        self.list_spacing_edit.setToolTip("CSS margin between list items in the Markdown view")
+        self.list_spacing_edit.setMaximumWidth(130)
+        md_form.addRow("List item spacing:", self.list_spacing_edit)
+
         self.md_width_edit = QLineEdit()
         self.md_width_edit.setPlaceholderText("e.g. 67%, 80%, 860px")
         self.md_width_edit.setToolTip("CSS max-width of the text column in the Markdown view")
@@ -219,8 +219,6 @@ class AppearanceDialog(QDialog):
         )
         md_form.addRow("Front matter:", self.frontmatter_combo)
 
-        layout.addWidget(md_grp)
-
         # Shortcuts group
         sc_grp = QGroupBox("Keyboard Shortcuts")
         sc_form = QFormLayout(sc_grp)
@@ -234,7 +232,24 @@ class AppearanceDialog(QDialog):
         self.expand_sc = QKeySequenceEdit()
         sc_form.addRow("Expand all:", self.expand_sc)
 
-        layout.addWidget(sc_grp)
+        # ── Two-column layout ────────────────────────────────────────────────
+        cols = QHBoxLayout()
+        cols.setSpacing(12)
+
+        left_col = QVBoxLayout()
+        left_col.addWidget(editor_grp)
+        left_col.addWidget(guide_grp)
+        left_col.addWidget(img_grp)
+        left_col.addStretch()
+
+        right_col = QVBoxLayout()
+        right_col.addWidget(md_grp)
+        right_col.addWidget(sc_grp)
+        right_col.addStretch()
+
+        cols.addLayout(left_col)
+        cols.addLayout(right_col)
+        layout.addLayout(cols)
 
         # Buttons
         btns = QDialogButtonBox(
@@ -274,6 +289,7 @@ class AppearanceDialog(QDialog):
         self.symbol_opacity_spin.setValue(int(s["symbol_opacity"] * 100))
         self.line_spacing_edit.setText(str(s.get("line_spacing", "1.65")))
         self.para_spacing_edit.setText(str(s.get("para_spacing", "0.6em")))
+        self.list_spacing_edit.setText(str(s.get("list_spacing", "3px")))
         self.md_width_edit.setText(str(s.get("md_max_width", "67%")))
         self.word_wrap_chk.setChecked(bool(s.get("word_wrap", True)))
         self.line_numbers_chk.setChecked(bool(s.get("show_line_numbers", False)))
@@ -295,6 +311,7 @@ class AppearanceDialog(QDialog):
     def _connect_live_signals(self):
         self.line_spacing_edit.textChanged.connect(self._on_live_change)
         self.para_spacing_edit.textChanged.connect(self._on_live_change)
+        self.list_spacing_edit.textChanged.connect(self._on_live_change)
         self.md_width_edit.textChanged.connect(self._on_live_change)
         self.word_wrap_chk.toggled.connect(self._on_live_change)
         self.line_numbers_chk.toggled.connect(self._on_live_change)
@@ -328,6 +345,9 @@ class AppearanceDialog(QDialog):
         ps = self.para_spacing_edit.text().strip()
         if ps:
             self.settings["para_spacing"] = ps
+        lst = self.list_spacing_edit.text().strip()
+        if lst:
+            self.settings["list_spacing"] = lst
         mw = self.md_width_edit.text().strip()
         if mw:
             self.settings["md_max_width"] = mw
