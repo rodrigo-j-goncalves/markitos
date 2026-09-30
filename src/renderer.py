@@ -60,7 +60,7 @@ def _extract_front_matter(text: str):
 def _fm_value_str(val) -> str:
     """Convert a parsed YAML value to a display string."""
     if isinstance(val, list):
-        return ", ".join(_fm_value_str(v) for v in val)
+        return "; ".join(_fm_value_str(v) for v in val)
     if isinstance(val, dict):
         return "; ".join(f"{k}: {_fm_value_str(v)}" for k, v in val.items())
     return str(val) if val is not None else ""
