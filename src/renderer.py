@@ -3,6 +3,11 @@ import html as _html
 import mistune
 from mistune.renderers.html import HTMLRenderer
 
+try:
+    import yaml as _yaml
+except ImportError:
+    _yaml = None
+
 
 # ---------------------------------------------------------------------------
 # LaTeX / math protection
@@ -52,22 +57,41 @@ def _extract_front_matter(text: str):
     return None, text
 
 
+def _fm_value_str(val) -> str:
+    """Convert a parsed YAML value to a display string."""
+    if isinstance(val, list):
+        return ", ".join(_fm_value_str(v) for v in val)
+    if isinstance(val, dict):
+        return "; ".join(f"{k}: {_fm_value_str(v)}" for k, v in val.items())
+    return str(val) if val is not None else ""
+
+
 def _render_front_matter_html(yaml_str: str) -> str:
-    """Render YAML front matter as a styled metadata block."""
+    """Render YAML front matter as a styled metadata block (parsed via PyYAML)."""
+    data = None
+    if _yaml is not None:
+        try:
+            data = _yaml.safe_load(yaml_str)
+        except Exception:
+            pass
+
     rows = []
-    for line in yaml_str.splitlines():
-        if ': ' in line:
-            key, _, val = line.partition(': ')
+    if isinstance(data, dict):
+        for key, val in data.items():
             rows.append(
                 f'<tr>'
-                f'<td class="fm-key">{_html.escape(key.strip())}</td>'
-                f'<td class="fm-val">{_html.escape(val.strip())}</td>'
+                f'<td class="fm-key">{_html.escape(str(key))}</td>'
+                f'<td class="fm-val">{_html.escape(_fm_value_str(val))}</td>'
                 f'</tr>'
             )
-        elif line.strip():
-            rows.append(
-                f'<tr><td colspan="2" class="fm-val">{_html.escape(line.strip())}</td></tr>'
-            )
+    else:
+        # Fallback: show raw text if YAML couldn't be parsed as a mapping
+        for line in yaml_str.splitlines():
+            if line.strip():
+                rows.append(
+                    f'<tr><td colspan="2" class="fm-val">{_html.escape(line.strip())}</td></tr>'
+                )
+
     table = f'<table class="fm-table">{"".join(rows)}</table>' if rows else ''
     return f'<div class="frontmatter">{table}</div>\n'
 

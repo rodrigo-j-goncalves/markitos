@@ -1315,6 +1315,11 @@ class MainWindow(QMainWindow):
         )
         self._expand_sc.activated.connect(self.expand_all)
 
+        # Ctrl++ / Ctrl+- font size
+        QShortcut(QKeySequence("Ctrl++"), self).activated.connect(lambda: self._on_ctrl_scroll(1))
+        QShortcut(QKeySequence("Ctrl+="), self).activated.connect(lambda: self._on_ctrl_scroll(1))
+        QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(lambda: self._on_ctrl_scroll(-1))
+
     def _on_escape(self):
         if self._find_bar.isVisible():
             self._find_bar.hide()
