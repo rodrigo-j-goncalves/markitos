@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QComboBox,
     QSpinBox,
+    QDoubleSpinBox,
     QPushButton,
     QColorDialog,
     QDialogButtonBox,
@@ -15,8 +16,8 @@ from PyQt6.QtWidgets import (
     QKeySequenceEdit,
     QCheckBox,
 )
-from PyQt6.QtGui import QFontDatabase, QColor, QKeySequence
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QFontDatabase, QColor, QKeySequence, QPageLayout, QPageSize
+from PyQt6.QtCore import pyqtSignal, Qt, QMarginsF
 
 from .settings import Settings
 
@@ -495,3 +496,106 @@ class FindBar(QFrame):
             self._close()
         else:
             super().keyPressEvent(event)
+
+
+class PrintDialog(QDialog):
+    """Print / Export PDF settings dialog."""
+
+    def __init__(self, settings, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Print / Export PDF")
+        self.setMinimumWidth(360)
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+
+        doc_pt = settings.get("font_size", 14)
+        fs_row = QHBoxLayout()
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(6, 24)
+        self.font_size_spin.setValue(12)
+        self.font_size_spin.setSuffix(" pt")
+        fs_row.addWidget(self.font_size_spin)
+        fs_row.addWidget(QLabel(f"(document: {doc_pt} pt)"))
+        fs_row.addStretch()
+        form.addRow("Font size:", fs_row)
+
+        self.page_size_combo = QComboBox()
+        self.page_size_combo.addItem("A4",        QPageSize.PageSizeId.A4)
+        self.page_size_combo.addItem("US Letter", QPageSize.PageSizeId.Letter)
+        self.page_size_combo.addItem("A3",        QPageSize.PageSizeId.A3)
+        form.addRow("Page size:", self.page_size_combo)
+
+        self.orient_combo = QComboBox()
+        self.orient_combo.addItem("Portrait",  QPageLayout.Orientation.Portrait)
+        self.orient_combo.addItem("Landscape", QPageLayout.Orientation.Landscape)
+        form.addRow("Orientation:", self.orient_combo)
+
+        layout.addLayout(form)
+
+        margins_grp = QGroupBox("Margins (mm)")
+        mg = QFormLayout(margins_grp)
+        mg.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+
+        def _mm_spin(default=25.0):
+            s = QDoubleSpinBox()
+            s.setRange(0, 60)
+            s.setValue(default)
+            s.setSuffix(" mm")
+            s.setFixedWidth(90)
+            return s
+
+        tb_row = QHBoxLayout()
+        self.margin_top    = _mm_spin(25.0)
+        self.margin_bottom = _mm_spin(25.0)
+        tb_row.addWidget(QLabel("Top:"))
+        tb_row.addWidget(self.margin_top)
+        tb_row.addSpacing(12)
+        tb_row.addWidget(QLabel("Bottom:"))
+        tb_row.addWidget(self.margin_bottom)
+        tb_row.addStretch()
+        mg.addRow(tb_row)
+
+        lr_row = QHBoxLayout()
+        self.margin_left  = _mm_spin(25.0)
+        self.margin_right = _mm_spin(25.0)
+        lr_row.addWidget(QLabel("Left:"))
+        lr_row.addWidget(self.margin_left)
+        lr_row.addSpacing(12)
+        lr_row.addWidget(QLabel("Right:"))
+        lr_row.addWidget(self.margin_right)
+        lr_row.addStretch()
+        mg.addRow(lr_row)
+
+        layout.addWidget(margins_grp)
+
+        opts_grp = QGroupBox("Options")
+        opts_layout = QVBoxLayout(opts_grp)
+        self.page_numbers_chk = QCheckBox("Page numbers (X of Y)")
+        self.page_numbers_chk.setChecked(True)
+        self.white_paper_chk = QCheckBox("White paper (override theme colors)")
+        self.white_paper_chk.setChecked(True)
+        opts_layout.addWidget(self.page_numbers_chk)
+        opts_layout.addWidget(self.white_paper_chk)
+        layout.addWidget(opts_grp)
+
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def page_layout(self) -> QPageLayout:
+        return QPageLayout(
+            QPageSize(self.page_size_combo.currentData()),
+            self.orient_combo.currentData(),
+            QMarginsF(
+                self.margin_left.value(),
+                self.margin_top.value(),
+                self.margin_right.value(),
+                self.margin_bottom.value(),
+            ),
+            QPageLayout.Unit.Millimeter,
+        )

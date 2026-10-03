@@ -52,7 +52,7 @@ from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 
 from .settings import Settings
 from .renderer import render_markdown
-from .dialogs import AppearanceDialog, FindBar
+from .dialogs import AppearanceDialog, FindBar, PrintDialog
 from .version import __version__, APP_NAME
 
 
@@ -1161,6 +1161,13 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        act = QAction("&Print / Export PDF…", self)
+        act.setShortcut(QKeySequence.StandardKey.Print)
+        act.triggered.connect(self.print_to_pdf)
+        file_menu.addAction(act)
+
+        file_menu.addSeparator()
+
         act = QAction("E&xit", self)
         act.setShortcut(QKeySequence.StandardKey.Quit)
         act.triggered.connect(self.close)
@@ -1452,6 +1459,83 @@ class MainWindow(QMainWindow):
             self.settings["open_dir"] = os.path.dirname(path)
             self._rebuild_recent_menu()
             self._update_title()
+
+    def print_to_pdf(self):
+        dlg = PrintDialog(self.settings, parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        # Default PDF filename next to the open file, or home directory
+        if self.current_file:
+            default_path = os.path.splitext(self.current_file)[0] + ".pdf"
+        else:
+            default_path = os.path.join(
+                self.settings.get("open_dir", "") or os.path.expanduser("~"),
+                "document.pdf",
+            )
+        out_path, _ = QFileDialog.getSaveFileName(
+            self, "Export PDF", default_path, "PDF (*.pdf)"
+        )
+        if not out_path:
+            return
+        if not out_path.lower().endswith(".pdf"):
+            out_path += ".pdf"
+
+        # Render MD with the chosen font size (settings dict copy — renderer accepts dict)
+        print_settings = self.settings.copy()
+        print_settings["font_size"] = dlg.font_size_spin.value()
+        if dlg.white_paper_chk.isChecked():
+            print_settings["bg_color"]   = "#ffffff"
+            print_settings["text_color"] = "#1a1a1a"
+        html = render_markdown(self._editor.toPlainText(), print_settings)
+
+        # Build extra print CSS and optional header HTML
+        extra_css_parts = []
+        extra_css_parts.append(
+            "@media print {"
+            " .nav-focus { outline: none; background: none; }"
+            " img { break-inside: avoid; page-break-inside: avoid;"
+            " max-height: calc(100vh - 4em); width: auto; max-width: 100%; }"
+            " p:has(> img) { break-inside: avoid; page-break-inside: avoid; }"
+            " }"
+        )
+
+        if dlg.page_numbers_chk.isChecked():
+            extra_css_parts.append(
+                "@page { @bottom-center {"
+                " content: counter(page) \" de \" counter(pages);"
+                " font-size: 9pt; color: #888; } }"
+            )
+
+        if extra_css_parts:
+            html = html.replace("</style>", "\n".join(extra_css_parts) + "\n</style>", 1)
+
+        # Expand all <details> in the HTML string so nothing prints collapsed
+        html = re.sub(r'<details(?![^>]*\bopen\b)([^>]*)>', r'<details open\1>', html)
+
+        # Base URL so relative images resolve correctly
+        if self.current_file:
+            base_url = QUrl.fromLocalFile(os.path.dirname(self.current_file) + "/")
+        else:
+            base_url = QUrl.fromLocalFile(os.path.expanduser("~") + "/")
+
+        layout = dlg.page_layout()
+
+        # Load into an off-screen page, export on loadFinished
+        self._print_page = QWebEnginePage(self)
+        self._print_page.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
+
+        def _on_loaded(ok):
+            self._print_page.printToPdf(out_path, layout)
+            self._status.showMessage(
+                f"Exported: {os.path.basename(out_path)}", 5000
+            )
+            QTimer.singleShot(6000, lambda: setattr(self, "_print_page", None))
+
+        self._print_page.loadFinished.connect(_on_loaded)
+        self._print_page.setHtml(html, base_url)
 
     def _on_paste_image(self, img: QImage):
         """Save a pasted image to the configured folder and insert a Markdown image link."""
