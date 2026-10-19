@@ -7,9 +7,9 @@ class Settings:
     DEFAULTS = {
         "font_family": "Sans Serif",
         "font_size": 14,
-        "text_color": "#1a1a1a",
-        "bg_color": "#ffffff",
-        "heading_color": "#2c5282",
+        "text_color": "#e8e8e8",
+        "bg_color": "#0d0d0d",
+        "heading_color": "#6b9dfc",
         "window_x": 100,
         "window_y": 100,
         "window_width": 1000,

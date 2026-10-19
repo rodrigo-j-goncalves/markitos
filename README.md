@@ -107,7 +107,7 @@ All appearance options live in **View → Settings** (or the toolbar Settings bu
 |---------|-------------|
 | Editor font family / size | Font used in the text editor |
 | Markdown font family / size | Font used in the rendered view ("same as editor" to inherit) |
-| Text / Background / Heading colour | Palette for both edit and rendered view |
+| Text / Background / Heading colour | Palette for both edit and rendered view (default: dark theme — `#e8e8e8` / `#0d0d0d` / `#6b9dfc`) |
 | Line spacing (Markdown view) | CSS `line-height` value (e.g. `1.65`, `2`, `2em`) |
 | Paragraph spacing (Markdown view) | CSS margin between paragraphs (e.g. `0.6em`, `1em`, `12px`) |
 | Text width (Markdown view) | CSS `max-width` of the text column (e.g. `67%`, `860px`) |
