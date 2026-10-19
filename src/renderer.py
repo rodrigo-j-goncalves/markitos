@@ -379,17 +379,18 @@ sub {{ font-size: .75em; vertical-align: sub; }}
     background: rgba(128,128,128,0.07);
 }}
 .frontmatter {{
-    border: 1px solid rgba(128,128,128,0.3);
-    border-radius: 6px;
-    background: rgba(128,128,128,0.06);
-    padding: 10px 14px;
+    border-left: 3px solid #d19a66;
+    border-radius: 0 4px 4px 0;
+    background: rgba(209,154,102,0.07);
+    padding: 8px 14px;
     margin-bottom: 1.5em;
     font-size: 0.85em;
+    font-family: '{ff}', monospace;
 }}
 .fm-table {{ border-collapse: collapse; width: 100%; margin: 0; }}
 .fm-table td {{ border: none; padding: 2px 8px 2px 0; background: transparent; }}
-.fm-key {{ color: {hc}; font-weight: 600; white-space: nowrap; width: 1%; }}
-.fm-val {{ color: {tc}; }}
+.fm-key {{ color: #d19a66; font-weight: 600; white-space: nowrap; width: 1%; }}
+.fm-val {{ color: #98c379; }}
 """
 
 
