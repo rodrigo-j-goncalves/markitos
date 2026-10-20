@@ -765,6 +765,14 @@ def _heading_display_text(source_heading: str) -> str:
 class _OutlineTree(QTreeWidget):
     """QTreeWidget with keyboard focus support for the outline panel."""
     focus_escape = pyqtSignal()
+    ctrl_scroll  = pyqtSignal(int)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self.ctrl_scroll.emit(event.angleDelta().y())
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     def focusNextPrevChild(self, _next):
         # Prevent Qt from moving focus via its own tab-order mechanism so that
@@ -1060,6 +1068,7 @@ class MainWindow(QMainWindow):
 
         self._editor = _Editor()
         self._editor.ctrl_scroll.connect(self._on_ctrl_scroll)
+        self._outline_panel._tree.ctrl_scroll.connect(self._on_ctrl_scroll)
         self._editor.paste_done.connect(self._apply_editor_style)
         self._editor.paste_image.connect(self._on_paste_image)
         self._editor.textChanged.connect(self._mark_modified)
@@ -1935,9 +1944,10 @@ class MainWindow(QMainWindow):
             self.settings["font_size"] = new_size
             self._update_status_zoom()
             if self.view_mode:
-                self._render_view()
-            else:
-                self._apply_editor_style()
+                self._viewer.page().runJavaScript(
+                    f"document.body.style.fontSize = '{new_size}pt';"
+                )
+            self._apply_editor_style()
 
     # ------------------------------------------------------------------- find
 
