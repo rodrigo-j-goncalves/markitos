@@ -374,9 +374,9 @@ del {{ text-decoration: line-through; opacity: .65; }}
 sup {{ font-size: .75em; vertical-align: super; }}
 sub {{ font-size: .75em; vertical-align: sub; }}
 .nav-focus {{
-    outline: 2px solid rgba(128,128,128,0.35);
-    border-radius: 3px;
-    background: rgba(128,128,128,0.07);
+    box-shadow: inset 3px 0 0 {hc};
+    margin-left: -8px;
+    padding-left: 8px;
 }}
 .frontmatter {{
     border-left: 3px solid #d19a66;
