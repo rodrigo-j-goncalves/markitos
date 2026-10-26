@@ -374,9 +374,7 @@ del {{ text-decoration: line-through; opacity: .65; }}
 sup {{ font-size: .75em; vertical-align: super; }}
 sub {{ font-size: .75em; vertical-align: sub; }}
 .nav-focus {{
-    box-shadow: inset 3px 0 0 {hc};
-    margin-left: -8px;
-    padding-left: 8px;
+    background: color-mix(in srgb, {hc} 12%, transparent);
 }}
 .frontmatter {{
     border-left: 3px solid #d19a66;
