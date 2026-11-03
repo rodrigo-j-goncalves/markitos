@@ -533,8 +533,13 @@ function expandAll() {
                     navIndex = newIdx >= 0 ? newIdx : navIndex;
                     applyFocusNoScroll(newItems, navIndex);
                     window.scrollTo(0, savedY);
+                    return;
                 }
             }
+            e.preventDefault();
+            clearFocus(items);
+            navIndex = Math.min(navIndex + 1, items.length - 1);
+            applyFocus(items, navIndex);
 
         } else if (e.key === 'ArrowLeft') {
             if (navIndex < 0 || navIndex >= items.length) return;
