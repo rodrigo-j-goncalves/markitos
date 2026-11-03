@@ -551,8 +551,13 @@ function expandAll() {
                     navIndex = newIdx >= 0 ? newIdx : Math.min(navIndex, newItems.length - 1);
                     applyFocusNoScroll(newItems, navIndex);
                     window.scrollTo(0, savedY);
+                    return;
                 }
             }
+            e.preventDefault();
+            clearFocus(items);
+            navIndex = navIndex < 0 ? items.length - 1 : Math.max(navIndex - 1, 0);
+            applyFocus(items, navIndex);
         }
     });
 
