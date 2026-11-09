@@ -434,7 +434,7 @@ class _Editor(QPlainTextEdit):
         if ctrl and not shift and key == Qt.Key.Key_B:
             self._toggle_format("**")
         elif ctrl and not shift and key == Qt.Key.Key_I:
-            self._toggle_format("*")
+            self._toggle_format("_")
         elif ctrl and not shift and key == Qt.Key.Key_Up:
             sb = self.verticalScrollBar()
             sb.setValue(sb.value() - 1)
@@ -461,6 +461,10 @@ class _Editor(QPlainTextEdit):
             self.setTextCursor(c)
         elif key == Qt.Key.Key_Backspace and self._at_bullet_marker():
             self._dedent_bullet_to_parent()
+        elif ctrl and shift and key == Qt.Key.Key_Right:
+            self._select_word_right()
+        elif ctrl and shift and key == Qt.Key.Key_Left:
+            self._select_word_left()
         else:
             super().keyPressEvent(event)
 
@@ -585,25 +589,75 @@ class _Editor(QPlainTextEdit):
     def _toggle_format(self, marker: str):
         """Wrap/unwrap the current selection with a Markdown inline marker.
 
-        marker="*"  → italic,  marker="**" → bold.
-        If the selection is already wrapped, the markers are removed instead.
+        marker="_"  → italic,  marker="**" → bold.
+        Removes markers if they are inside OR just outside the selection.
         With no selection, inserts the marker pair and places the cursor between them.
         """
         cursor = self.textCursor()
         ml = len(marker)
         if cursor.hasSelection():
             selected = cursor.selectedText()
+            start = cursor.selectionStart()
+            end = cursor.selectionEnd()
             if (selected.startswith(marker) and selected.endswith(marker)
                     and len(selected) > 2 * ml):
                 cursor.insertText(selected[ml:-ml])
+                cursor.setPosition(start)
+                cursor.setPosition(start + len(selected) - 2 * ml,
+                                   QTextCursor.MoveMode.KeepAnchor)
+                self.setTextCursor(cursor)
             else:
-                cursor.insertText(f"{marker}{selected}{marker}")
-            self.setTextCursor(cursor)
+                text = self.toPlainText()
+                if (start >= ml and end + ml <= len(text)
+                        and text[start - ml:start] == marker
+                        and text[end:end + ml] == marker):
+                    c = QTextCursor(self.document())
+                    c.setPosition(end)
+                    c.setPosition(end + ml, QTextCursor.MoveMode.KeepAnchor)
+                    c.removeSelectedText()
+                    c.setPosition(start - ml)
+                    c.setPosition(start, QTextCursor.MoveMode.KeepAnchor)
+                    c.removeSelectedText()
+                    c.setPosition(start - ml)
+                    c.setPosition(end - ml, QTextCursor.MoveMode.KeepAnchor)
+                    self.setTextCursor(c)
+                else:
+                    cursor.insertText(f"{marker}{selected}{marker}")
+                    cursor.setPosition(start + ml)
+                    cursor.setPosition(end + ml, QTextCursor.MoveMode.KeepAnchor)
+                    self.setTextCursor(cursor)
         else:
             pos = cursor.position()
             cursor.insertText(f"{marker}{marker}")
             cursor.setPosition(pos + ml)
             self.setTextCursor(cursor)
+
+    def _select_word_right(self):
+        """Extend selection to end of current/next word (VS Code style — no trailing space)."""
+        cursor = self.textCursor()
+        text = self.toPlainText()
+        pos = cursor.position()
+        n = len(text)
+        if pos < n and text[pos] in ' \t':
+            while pos < n and text[pos] in ' \t':
+                pos += 1
+        while pos < n and text[pos] not in ' \t\n':
+            pos += 1
+        cursor.setPosition(pos, QTextCursor.MoveMode.KeepAnchor)
+        self.setTextCursor(cursor)
+
+    def _select_word_left(self):
+        """Extend selection to start of current/previous word (VS Code style — no leading space)."""
+        cursor = self.textCursor()
+        text = self.toPlainText()
+        pos = cursor.position()
+        if pos > 0 and text[pos - 1] in ' \t':
+            while pos > 0 and text[pos - 1] in ' \t':
+                pos -= 1
+        while pos > 0 and text[pos - 1] not in ' \t\n':
+            pos -= 1
+        cursor.setPosition(pos, QTextCursor.MoveMode.KeepAnchor)
+        self.setTextCursor(cursor)
 
     def _smart_enter(self) -> bool:
         """Handle Enter key for list continuation.
