@@ -883,7 +883,13 @@ class _OutlinePanel(QWidget):
     def refresh(self, text: str):
         self._tree.clear()
         stack = []  # list of (level, QTreeWidgetItem)
+        in_code_block = False
         for line_num, line in enumerate(text.split('\n')):
+            if re.match(r'^(`{3,}|~{3,})', line):
+                in_code_block = not in_code_block
+                continue
+            if in_code_block:
+                continue
             m = re.match(r'^(#{1,6})\s+(.*)', line)
             if not m:
                 continue
