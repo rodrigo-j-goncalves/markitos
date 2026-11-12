@@ -1127,6 +1127,7 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(self._viewer)
 
         self._editor = _Editor()
+        self._editor.setCenterOnScroll(True)
         self._editor.ctrl_scroll.connect(self._on_ctrl_scroll)
         self._outline_panel._tree.ctrl_scroll.connect(self._on_ctrl_scroll)
         self._editor.paste_done.connect(self._apply_editor_style)
@@ -1714,8 +1715,12 @@ class MainWindow(QMainWindow):
                 "var el=document.querySelector('.nav-focus');"
                 "if(el){"
                 "  var isH=el.tagName==='H1'||el.classList.contains('header-toggle');"
-                "  var t=el.textContent.trim();"
-                "  return {text:t,type:isH?'heading':'bullet'};"
+                "  var isBullet=el.tagName==='LI'||el.classList.contains('cl-toggle');"
+                "  if(isH){return {text:el.textContent.trim(),type:'heading'};}"
+                "  if(isBullet){return {text:el.textContent.trim(),type:'bullet'};}"
+                "  var hs=Array.from(document.querySelectorAll('h1,summary.header-toggle'));"
+                "  var pre=hs.filter(function(h){return h.compareDocumentPosition(el)&4;});"
+                "  if(pre.length){return {text:pre[pre.length-1].textContent.trim(),type:'heading'};}"
                 "}"
                 "var els=document.querySelectorAll('summary.header-toggle,h1');"
                 "var best=null,bestDist=Infinity;"

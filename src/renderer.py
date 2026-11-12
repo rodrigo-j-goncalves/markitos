@@ -487,6 +487,30 @@ function expandAll() {
                 return;
             }
         }
+        // Not in visible items — may be inside a collapsed <details>.
+        // Expand ancestors and retry.
+        var all = document.querySelectorAll('h1,summary.header-toggle');
+        for (var j = 0; j < all.length; j++) {
+            if (all[j].textContent.trim() !== headingText) continue;
+            var node = all[j];
+            var anc = node.parentElement;
+            while (anc && anc !== document.body) {
+                if (anc.tagName === 'DETAILS') anc.setAttribute('open', '');
+                anc = anc.parentElement;
+            }
+            var newItems = visibleNavItems();
+            clearFocus(newItems);
+            for (var k = 0; k < newItems.length; k++) {
+                if (newItems[k].textContent.trim() === headingText) {
+                    navIndex = k;
+                    newItems[k].classList.add('nav-focus');
+                    newItems[k].scrollIntoView({ block: 'start', behavior: 'instant' });
+                    return;
+                }
+            }
+            node.scrollIntoView({ block: 'start', behavior: 'instant' });
+            return;
+        }
     };
 
     document.addEventListener('keydown', function(e) {
