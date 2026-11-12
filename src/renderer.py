@@ -513,6 +513,37 @@ function expandAll() {
         }
     };
 
+    window.__mdNavInitBullet = function(bulletText) {
+        function tryFind(items) {
+            for (var i = 0; i < items.length; i++) {
+                var el = items[i];
+                if ((el.tagName === 'LI' || el.classList.contains('cl-toggle'))
+                        && el.textContent.trim() === bulletText) {
+                    clearFocus(items);
+                    navIndex = i;
+                    el.classList.add('nav-focus');
+                    el.scrollIntoView({ block: 'start', behavior: 'instant' });
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (tryFind(visibleNavItems())) return;
+        // May be inside a collapsed section; expand ancestors and retry.
+        var all = document.querySelectorAll('li.leaf-item,summary.cl-toggle');
+        for (var j = 0; j < all.length; j++) {
+            if (all[j].textContent.trim() !== bulletText) continue;
+            var anc = all[j].parentElement;
+            while (anc && anc !== document.body) {
+                if (anc.tagName === 'DETAILS') anc.setAttribute('open', '');
+                anc = anc.parentElement;
+            }
+            if (tryFind(visibleNavItems())) return;
+            all[j].scrollIntoView({ block: 'start', behavior: 'instant' });
+            return;
+        }
+    };
+
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'ArrowDown') {
             e.preventDefault();

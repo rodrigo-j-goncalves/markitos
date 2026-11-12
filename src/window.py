@@ -1122,6 +1122,7 @@ class MainWindow(QMainWindow):
         self._viewer.loadFinished.connect(self._on_view_loaded)
         self._pending_scroll = None
         self._pending_scroll_heading = None
+        self._pending_scroll_type = 'heading'
         self._view_scroll_ratio = 0.0   # kept in sync by scrollPositionChanged
         self._viewer.page().scrollPositionChanged.connect(self._on_viewer_scroll)
         self._stack.addWidget(self._viewer)
@@ -1844,17 +1845,38 @@ class MainWindow(QMainWindow):
 
     def _render_view(self, sync_scroll=False):
         if sync_scroll:
-            # Use the cursor block: the user places their cursor at the paragraph
-            # they want to remain visible when switching to MD view.
+            doc = self._editor.document()
             block_num = self._editor.textCursor().blockNumber()
-            total = max(self._editor.document().blockCount() - 1, 1)
+            total = max(doc.blockCount() - 1, 1)
             self._pending_scroll = block_num / total
-            # Use heading-based sync only when the cursor is exactly on a heading
-            # line — that maps precisely to a rendered <summary> element and also
-            # seeds the MD keyboard-nav index.  For all other positions (cursor
-            # between or after headings) ratio-based scroll is more accurate.
-            heading_text, _ = self._nearest_heading_above(block_num)
-            self._pending_scroll_heading = heading_text
+
+            # Detect whether the cursor line is inside a fenced code block.
+            in_code = False
+            for i in range(block_num + 1):
+                line = doc.findBlockByNumber(i).text()
+                is_fence = bool(re.match(r'^(`{3,}|~{3,})', line))
+                if is_fence:
+                    in_code = not in_code
+                if i == block_num:
+                    cursor_in_code = in_code or is_fence
+                    break
+            else:
+                cursor_in_code = False
+
+            block_text = doc.findBlockByNumber(block_num).text()
+            m_heading = re.match(r'^#{1,6}\s+(.*)', block_text) if not cursor_in_code else None
+            m_bullet  = re.match(r'^\s*(?:[-*+]|\d+\.)\s+(.*)', block_text) if not cursor_in_code else None
+
+            if m_heading:
+                self._pending_scroll_heading = _heading_display_text(m_heading.group(1))
+                self._pending_scroll_type = 'heading'
+            elif m_bullet:
+                self._pending_scroll_heading = _heading_display_text(m_bullet.group(1).strip())
+                self._pending_scroll_type = 'bullet'
+            else:
+                heading_text, _ = self._nearest_heading_above(block_num)
+                self._pending_scroll_heading = heading_text
+                self._pending_scroll_type = 'heading'
         html = render_markdown(self._editor.toPlainText(), self.settings)
         if self.current_file:
             base_url = QUrl.fromLocalFile(os.path.dirname(self.current_file) + os.sep)
@@ -1873,12 +1895,11 @@ class MainWindow(QMainWindow):
         self._pending_scroll = None
 
         heading = getattr(self, '_pending_scroll_heading', None)
+        scroll_type = getattr(self, '_pending_scroll_type', 'heading')
         self._pending_scroll_heading = None
+        self._pending_scroll_type = 'heading'
 
         if heading:
-            # Use the page's own nav system: sets navIndex to the matching
-            # item, applies the nav-focus highlight, and scrollIntoView.
-            # This means the first Down/Up keypress continues from that item.
             safe = heading.replace('\\', '\\\\').replace('"', '\\"')
             def _sync_outline_from_nav_focus(_):
                 self._viewer.page().runJavaScript(
@@ -1886,8 +1907,9 @@ class MainWindow(QMainWindow):
                     "return el?el.textContent.trim():null;})()",
                     self._outline_panel.set_current_heading,
                 )
+            js_fn = '__mdNavInitBullet' if scroll_type == 'bullet' else '__mdNavInit'
             self._viewer.page().runJavaScript(
-                f'window.__mdNavInit("{safe}")', _sync_outline_from_nav_focus
+                f'window.{js_fn}("{safe}")', _sync_outline_from_nav_focus
             )
         else:
             ratio = self._view_scroll_ratio
