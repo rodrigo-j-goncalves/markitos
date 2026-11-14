@@ -1177,6 +1177,7 @@ class MainWindow(QMainWindow):
 
         self._status = QStatusBar()
         self.setStatusBar(self._status)
+        self._viewer.page().linkHovered.connect(self._on_link_hovered)
 
         # Left: mode indicator (read-only label — use the toolbar button to toggle).
         self._lbl_mode = QLabel("Ready")
@@ -2004,6 +2005,12 @@ class MainWindow(QMainWindow):
         self._update_title()   # re-sync title in case textChanged fired during styling
 
     # -------------------------------------------------------------- status bar
+
+    def _on_link_hovered(self, url):
+        if url:
+            self._status.showMessage(url)
+        else:
+            self._status.clearMessage()
 
     def _update_status_zoom(self):
         self._lbl_zoom.setText(f"{self.settings['font_size']} pt")
