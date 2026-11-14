@@ -362,7 +362,7 @@ class _Editor(QPlainTextEdit):
         if not self._show_line_numbers:
             return 0
         digits = len(str(max(1, self.blockCount())))
-        return 6 + QFontMetrics(self.font()).horizontalAdvance('9' * digits)
+        return 10 + QFontMetrics(self.font()).horizontalAdvance('9' * digits)
 
     def _update_ln_width(self, _=0):
         w = self.line_number_area_width()
@@ -403,9 +403,9 @@ class _Editor(QPlainTextEdit):
             if block.isVisible() and bottom >= event.rect().top():
                 painter.drawText(
                     QRect(0, top,
-                          self._line_number_area.width() - 4,
+                          self._line_number_area.width(),
                           round(self.blockBoundingRect(block).height())),
-                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
                     str(block_num + 1)
                 )
             block     = block.next()
@@ -1280,6 +1280,12 @@ class MainWindow(QMainWindow):
         self._wrap_act.triggered.connect(self._toggle_word_wrap)
         view_menu.addAction(self._wrap_act)
 
+        self._line_num_act = QAction("Show &Line Numbers", self)
+        self._line_num_act.setCheckable(True)
+        self._line_num_act.setChecked(bool(self.settings.get("show_line_numbers", False)))
+        self._line_num_act.triggered.connect(self._toggle_line_numbers)
+        view_menu.addAction(self._line_num_act)
+
         view_menu.addSeparator()
 
         act = QAction("&Settings…", self)
@@ -2033,6 +2039,8 @@ class MainWindow(QMainWindow):
         self._editor.set_line_number_colors(ln_fg, ln_bg)
 
         self._apply_word_wrap()
+        if hasattr(self, "_line_num_act"):
+            self._line_num_act.setChecked(bool(self.settings.get("show_line_numbers", False)))
         self._outline_panel.apply_theme(
             self.settings["bg_color"], self.settings["text_color"],
             self.settings["font_family"], self.settings["font_size"],
@@ -2307,6 +2315,12 @@ class MainWindow(QMainWindow):
             self._editor.setTextCursor(cursor)
             QTimer.singleShot(0, self._editor.ensureCursorVisible)
             self._editor.setFocus()
+
+    def _toggle_line_numbers(self, checked: bool):
+        self.settings["show_line_numbers"] = checked
+        self._apply_editor_style()
+        if hasattr(self, "_line_num_act"):
+            self._line_num_act.setChecked(checked)
 
     def _toggle_word_wrap(self, checked: bool):
         self.settings["word_wrap"] = checked
