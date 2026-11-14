@@ -544,6 +544,34 @@ function expandAll() {
         }
     };
 
+    window.__mdNavInitParagraph = function(paraText) {
+        function tryFind(items) {
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].tagName === 'P' && items[i].textContent.trim() === paraText) {
+                    clearFocus(items);
+                    navIndex = i;
+                    items[i].classList.add('nav-focus');
+                    items[i].scrollIntoView({ block: 'start', behavior: 'instant' });
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (tryFind(visibleNavItems())) return;
+        var all = document.querySelectorAll('p');
+        for (var j = 0; j < all.length; j++) {
+            if (all[j].textContent.trim() !== paraText) continue;
+            var anc = all[j].parentElement;
+            while (anc && anc !== document.body) {
+                if (anc.tagName === 'DETAILS') anc.setAttribute('open', '');
+                anc = anc.parentElement;
+            }
+            if (tryFind(visibleNavItems())) return;
+            all[j].scrollIntoView({ block: 'start', behavior: 'instant' });
+            return;
+        }
+    };
+
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && e.key === 'ArrowDown') {
             e.preventDefault();

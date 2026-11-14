@@ -1720,6 +1720,7 @@ class MainWindow(QMainWindow):
                 "  var isBullet=el.tagName==='LI'||el.classList.contains('cl-toggle');"
                 "  if(isH){return {text:el.textContent.trim(),type:'heading'};}"
                 "  if(isBullet){return {text:el.textContent.trim(),type:'bullet'};}"
+                "  if(el.tagName==='P'){return {text:el.textContent.trim(),type:'paragraph'};}"
                 "  var hs=Array.from(document.querySelectorAll('h1,summary.header-toggle'));"
                 "  var pre=hs.filter(function(h){return h.compareDocumentPosition(el)&4;});"
                 "  if(pre.length){return {text:pre[pre.length-1].textContent.trim(),type:'heading'};}"
@@ -1772,8 +1773,10 @@ class MainWindow(QMainWindow):
         kind = result.get('type', 'heading') if isinstance(result, dict) else 'heading'
         if kind == 'heading':
             self._restore_editor_to_heading(text)
-        else:
+        elif kind == 'bullet':
             self._restore_editor_to_bullet(text)
+        else:
+            self._restore_editor_to_paragraph(text)
 
     def _restore_editor_to_bullet(self, bullet_text: str):
         """Find the bullet line nearest to the current cursor and jump there."""
@@ -1785,6 +1788,33 @@ class MainWindow(QMainWindow):
         while block.isValid():
             m = re.match(r'^\s*(?:[-*+]|\d+\.)\s+(.*)', block.text())
             if m and _heading_display_text(m.group(1).strip()) == bullet_text:
+                dist = abs(block.blockNumber() - cursor_line)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_block = block
+            block = block.next()
+        if best_block:
+            cursor = QTextCursor(best_block)
+            self._editor.setTextCursor(cursor)
+            QTimer.singleShot(0, self._editor.ensureCursorVisible)
+        else:
+            self._restore_editor_scroll(self._view_scroll_ratio)
+
+    def _restore_editor_to_paragraph(self, para_text: str):
+        """Find a plain-text paragraph line matching para_text and jump there."""
+        doc = self._editor.document()
+        cursor_line = self._editor.textCursor().blockNumber()
+        best_block = None
+        best_dist = float('inf')
+        block = doc.begin()
+        while block.isValid():
+            line = block.text()
+            stripped = line.strip()
+            if (stripped
+                    and not re.match(r'^#{1,6}\s', line)
+                    and not re.match(r'^\s*(?:[-*+]|\d+\.)\s', line)
+                    and not stripped.startswith('>')
+                    and _heading_display_text(stripped) == para_text):
                 dist = abs(block.blockNumber() - cursor_line)
                 if dist < best_dist:
                     best_dist = dist
@@ -1874,6 +1904,11 @@ class MainWindow(QMainWindow):
             elif m_bullet:
                 self._pending_scroll_heading = _heading_display_text(m_bullet.group(1).strip())
                 self._pending_scroll_type = 'bullet'
+            elif (block_text.strip()
+                    and not cursor_in_code
+                    and not block_text.strip().startswith('>')):
+                self._pending_scroll_heading = _heading_display_text(block_text.strip())
+                self._pending_scroll_type = 'paragraph'
             else:
                 heading_text, _ = self._nearest_heading_above(block_num)
                 self._pending_scroll_heading = heading_text
@@ -1908,7 +1943,12 @@ class MainWindow(QMainWindow):
                     "return el?el.textContent.trim():null;})()",
                     self._outline_panel.set_current_heading,
                 )
-            js_fn = '__mdNavInitBullet' if scroll_type == 'bullet' else '__mdNavInit'
+            if scroll_type == 'bullet':
+                js_fn = '__mdNavInitBullet'
+            elif scroll_type == 'paragraph':
+                js_fn = '__mdNavInitParagraph'
+            else:
+                js_fn = '__mdNavInit'
             self._viewer.page().runJavaScript(
                 f'window.{js_fn}("{safe}")', _sync_outline_from_nav_focus
             )
