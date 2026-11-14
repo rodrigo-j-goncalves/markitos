@@ -107,7 +107,7 @@ _KATEX_HEAD = (
     'crossorigin="anonymous"></script>\n'
     '<script defer '
     'src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" '
-    r"""onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false})" """
+    r"""onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false})" """
     'crossorigin="anonymous"></script>\n'
 )
 
